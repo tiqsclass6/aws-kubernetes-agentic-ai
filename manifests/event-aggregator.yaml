@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: event-aggregator
+  namespace: shared-services
+  annotations:
+    iam.gke.io/gcp-service-account: event-aggregator@class-6-5-tiqs.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: event-aggregator-config
+  namespace: shared-services
+data:
+  PROJECT_ID: class-6-5-tiqs
+  RAW_EVENTS_SUBSCRIPTION: raw-security-events-sub
+  FINDINGS_TOPIC: security-findings
+  HTTP_PORT: "8080"
+  MAX_FINDINGS_PER_EVENT: "500"
+  PUBLISH_PASSED_FINDINGS: "false"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-aggregator
+  namespace: shared-services
+  labels:
+    app: event-aggregator
+    app.kubernetes.io/name: event-aggregator
+    app.kubernetes.io/component: telemetry-normalizer
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+
+  selector:
+    matchLabels:
+      app: event-aggregator
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  template:
+    metadata:
+      labels:
+        app: event-aggregator
+        app.kubernetes.io/name: event-aggregator
+        app.kubernetes.io/component: telemetry-normalizer
+
+    spec:
+      serviceAccountName: event-aggregator
+      terminationGracePeriodSeconds: 30
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: event-aggregator
+
+          image: >-
+            us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/event-aggregator:phase3-v1
+
+          imagePullPolicy: IfNotPresent
+
+          envFrom:
+            - configMapRef:
+                name: event-aggregator-config
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+
+            capabilities:
+              drop:
+                - ALL
+
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+
+            periodSeconds: 5
+            failureThreshold: 30
+
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: event-aggregator
+  namespace: shared-services
+  labels:
+    app: event-aggregator
+spec:
+  type: ClusterIP
+
+  selector:
+    app: event-aggregator
+
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP

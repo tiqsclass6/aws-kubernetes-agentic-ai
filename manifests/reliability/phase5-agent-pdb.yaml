@@ -1,0 +1,32 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: event-aggregator
+  namespace: shared-services
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: event-aggregator
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: observer-agent
+  namespace: ai-agents
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: observer-agent
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: correlation-agent
+  namespace: ai-agents
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: correlation-agent

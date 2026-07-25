@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prowler-ksa
+  namespace: security
+  annotations:
+    iam.gke.io/gcp-service-account: prowler-sa@class-6-5-tiqs.iam.gserviceaccount.com

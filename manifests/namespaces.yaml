@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app01
+  labels:
+    kubernetes.io/metadata.name: app01
+    purpose: application
+    environment: lab
+    security-tier: low
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: security
+  labels:
+    kubernetes.io/metadata.name: security
+    purpose: security-scanning
+    environment: lab
+    security-tier: high
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shared-services
+  labels:
+    kubernetes.io/metadata.name: shared-services
+    purpose: telemetry-ingestion
+    environment: lab
+    security-tier: medium
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-agents
+  labels:
+    kubernetes.io/metadata.name: ai-agents
+    purpose: security-agents
+    environment: lab
+    security-tier: high
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-governance
+  labels:
+    kubernetes.io/metadata.name: ai-governance
+    purpose: deterministic-governance
+    environment: lab
+    security-tier: critical
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mcp
+  labels:
+    kubernetes.io/metadata.name: mcp
+    purpose: remediation-broker
+    environment: lab
+    security-tier: critical
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mcp-gateway
+  labels:
+    kubernetes.io/metadata.name: mcp-gateway
+    purpose: mtls-security-gateway
+    environment: lab
+    security-tier: critical

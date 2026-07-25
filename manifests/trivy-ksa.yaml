@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: trivy-ksa
+  namespace: security
+  annotations:
+    iam.gke.io/gcp-service-account: trivy-scanner@class-6-5-tiqs.iam.gserviceaccount.com

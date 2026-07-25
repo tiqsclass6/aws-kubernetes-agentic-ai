@@ -1,0 +1,129 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+  namespace: mcp
+  labels:
+    app.kubernetes.io/name: mcp-server
+    app.kubernetes.io/component: remediation-broker
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+
+  selector:
+    matchLabels:
+      app: mcp-server
+
+  template:
+    metadata:
+      labels:
+        app: mcp-server
+        app.kubernetes.io/name: mcp-server
+        app.kubernetes.io/component: remediation-broker
+
+    spec:
+      serviceAccountName: mcp-server-sa
+      terminationGracePeriodSeconds: 30
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: mcp-server
+
+          image: >-
+            us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/mcp-server:phase3-v1
+
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+
+          envFrom:
+            - configMapRef:
+                name: mcp-server-config
+
+          env:
+            - name: HOME
+              value: /tmp
+
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+
+            limits:
+              memory: 512Mi
+              cpu: 500m
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+
+            capabilities:
+              drop:
+                - ALL
+
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+
+            periodSeconds: 5
+            failureThreshold: 30
+
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server
+  namespace: mcp
+  labels:
+    app.kubernetes.io/name: mcp-server
+spec:
+  type: ClusterIP
+
+  selector:
+    app: mcp-server
+
+  ports:
+    - name: http
+      protocol: TCP
+      port: 9000
+      targetPort: http

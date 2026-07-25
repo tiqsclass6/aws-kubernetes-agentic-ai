@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: remediation-agent
+  namespace: ai-agents
+  annotations:
+    iam.gke.io/gcp-service-account: remediation-agent@class-6-5-tiqs.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: remediation-agent-config
+  namespace: ai-agents
+data:
+  PROJECT_ID: class-6-5-tiqs
+  INPUT_SUBSCRIPTION: remediation-governance-sub
+  OUTPUT_TOPIC: remediation-results
+  HEALTH_PORT: "8080"
+  FIRESTORE_DATABASE: "(default)"
+  EXECUTION_COLLECTION: remediation_executions
+  EXECUTION_MODE: disabled
+  EXPECTED_POLICY_ID: phase5-remediation
+  POLICY_FILE: /policies/remediation.rego
+  EXECUTION_LEASE_SECONDS: "180"
+  EXECUTION_TTL_DAYS: "30"
+  MCP_GATEWAY_URL: https://mcp-gateway.mcp-gateway.svc.cluster.local
+  MCP_CLIENT_CERT: /var/run/mcp-client-tls/tls.crt
+  MCP_CLIENT_KEY: /var/run/mcp-client-tls/tls.key
+  MCP_CA_CERT: /var/run/mcp-server-ca/ca.crt
+  MCP_TIMEOUT_SECONDS: "20"
+  ALLOWED_NAMESPACES: app01
+  ALLOWED_DEPLOYMENTS: broken-app
+  MAX_CONCURRENT_MESSAGES: "2"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: remediation-agent
+  namespace: ai-agents
+  labels:
+    app: remediation-agent
+    app.kubernetes.io/name: remediation-agent
+    app.kubernetes.io/component: policy-enforcement-point
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: remediation-agent
+  template:
+    metadata:
+      labels:
+        app: remediation-agent
+        app.kubernetes.io/name: remediation-agent
+        app.kubernetes.io/component: policy-enforcement-point
+    spec:
+      serviceAccountName: remediation-agent
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: remediation-agent
+          image: us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/remediation-agent:phase5-v1
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: remediation-agent-config
+          ports:
+            - name: health
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          volumeMounts:
+            - name: governance-policy
+              mountPath: /policies
+              readOnly: true
+            - name: mcp-client-tls
+              mountPath: /var/run/mcp-client-tls
+              readOnly: true
+            - name: mcp-server-ca
+              mountPath: /var/run/mcp-server-ca
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: governance-policy
+          configMap:
+            name: governance-policy
+        - name: mcp-client-tls
+          secret:
+            secretName: remediation-agent-client-tls
+            defaultMode: 0440
+        - name: mcp-server-ca
+          secret:
+            secretName: mcp-gateway-server-ca
+            defaultMode: 0440
+        - name: tmp
+          emptyDir: {}

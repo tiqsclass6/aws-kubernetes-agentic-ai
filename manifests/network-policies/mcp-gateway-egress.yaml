@@ -1,0 +1,44 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-gateway-restricted-egress
+  namespace: mcp-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app: mcp-gateway
+
+  policyTypes:
+    - Egress
+
+  egress:
+    # Permit the gateway to reach only the MCP server.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mcp
+
+          podSelector:
+            matchLabels:
+              app: mcp-server
+
+      ports:
+        - protocol: TCP
+          port: 9000
+
+    # Permit DNS resolution.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+
+      ports:
+        - protocol: UDP
+          port: 53
+
+        - protocol: TCP
+          port: 53

@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: approval-agent
+  namespace: ai-governance
+  annotations:
+    iam.gke.io/gcp-service-account: approval-agent@class-6-5-tiqs.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: approval-agent-config
+  namespace: ai-governance
+data:
+  PROJECT_ID: class-6-5-tiqs
+  INPUT_SUBSCRIPTION: approval-agent-sub
+  OUTPUT_TOPIC: governance-decisions
+  HEALTH_PORT: "8080"
+  FIRESTORE_DATABASE: "(default)"
+  APPROVAL_COLLECTION: approval_requests
+  GOVERNANCE_AUDIT_TOPIC: governance-audit
+  KMS_KEY_VERSION: projects/class-6-5-tiqs/locations/us-central1/keyRings/agentic-governance/cryptoKeys/approval-signing/cryptoKeyVersions/1
+  MAX_CLOCK_SKEW_SECONDS: "120"
+  PERMIT_TTL_SECONDS: "600"
+  MAX_CONCURRENT_MESSAGES: "2"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: approval-agent
+  namespace: ai-governance
+  labels:
+    app: approval-agent
+    app.kubernetes.io/name: approval-agent
+    app.kubernetes.io/component: human-approval-verifier
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: approval-agent
+  template:
+    metadata:
+      labels:
+        app: approval-agent
+        app.kubernetes.io/name: approval-agent
+        app.kubernetes.io/component: human-approval-verifier
+    spec:
+      serviceAccountName: approval-agent
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: approval-agent
+          image: us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/approval-agent:phase5-v1
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: approval-agent-config
+          ports:
+            - name: health
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

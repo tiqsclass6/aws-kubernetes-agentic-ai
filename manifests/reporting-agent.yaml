@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: reporting-agent
+  namespace: ai-agents
+  annotations:
+    iam.gke.io/gcp-service-account: reporting-agent@class-6-5-tiqs.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reporting-agent-config
+  namespace: ai-agents
+data:
+  PROJECT_ID: class-6-5-tiqs
+  INPUT_SUBSCRIPTION: reporting-agent-sub
+  OUTPUT_TOPIC: incident-reports
+  HEALTH_PORT: "8080"
+  MAX_CONCURRENT_MESSAGES: "4"
+  HTTP_TIMEOUT_SECONDS: "20"
+
+  ENABLE_SLACK: "false"
+  SLACK_WEBHOOK_SECRET_ID: security-slack-webhook-url
+
+  ENABLE_JIRA: "false"
+  JIRA_API_TOKEN_SECRET_ID: security-jira-api-token
+  JIRA_BASE_URL: ""
+  JIRA_EMAIL: ""
+  JIRA_PROJECT_KEY: ""
+  JIRA_ISSUE_TYPE: Task
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reporting-agent
+  namespace: ai-agents
+  labels:
+    app: reporting-agent
+    app.kubernetes.io/name: reporting-agent
+    app.kubernetes.io/component: incident-reporting
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+
+  selector:
+    matchLabels:
+      app: reporting-agent
+
+  template:
+    metadata:
+      labels:
+        app: reporting-agent
+        app.kubernetes.io/name: reporting-agent
+        app.kubernetes.io/component: incident-reporting
+
+    spec:
+      serviceAccountName: reporting-agent
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: reporting-agent
+
+          image: >-
+            us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/reporting-agent:phase3-v1
+
+          imagePullPolicy: IfNotPresent
+
+          envFrom:
+            - configMapRef:
+                name: reporting-agent-config
+
+          ports:
+            - name: health
+              containerPort: 8080
+              protocol: TCP
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+
+            limits:
+              cpu: 500m
+              memory: 384Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+
+            capabilities:
+              drop:
+                - ALL
+
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: health
+
+            periodSeconds: 5
+            failureThreshold: 30
+
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}

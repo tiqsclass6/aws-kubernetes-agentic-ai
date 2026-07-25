@@ -1,0 +1,102 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: event-aggregator-ingress
+  namespace: shared-services
+spec:
+  podSelector:
+    matchLabels:
+      app: event-aggregator
+
+  policyTypes:
+    - Ingress
+
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: security
+
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: falco
+
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: event-aggregator-egress
+  namespace: shared-services
+spec:
+  podSelector:
+    matchLabels:
+      app: event-aggregator
+
+  policyTypes:
+    - Egress
+
+  egress:
+    # DNS.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+
+      ports:
+        - protocol: UDP
+          port: 53
+
+        - protocol: TCP
+          port: 53
+
+    # Workload Identity endpoint for Calico-based GKE.
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.252/32
+
+      ports:
+        - protocol: TCP
+          port: 987
+
+        - protocol: TCP
+          port: 988
+
+    # Workload Identity endpoint for GKE Dataplane V2.
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.254/32
+
+      ports:
+        - protocol: TCP
+          port: 80
+
+        - protocol: TCP
+          port: 8080
+
+    # Pub/Sub Google APIs over public HTTPS.
+    # Private/VPC lateral access remains blocked.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+
+            except:
+              - 10.0.0.0/8
+              - 100.64.0.0/10
+              - 127.0.0.0/8
+              - 169.254.0.0/16
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 224.0.0.0/4
+              - 240.0.0.0/4
+
+      ports:
+        - protocol: TCP
+          port: 443

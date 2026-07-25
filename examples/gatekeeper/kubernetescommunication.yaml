@@ -1,0 +1,51 @@
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: k8snamespacecommunication
+
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sNamespaceCommunication
+
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            protectedNamespaces:
+              type: array
+              items:
+                type: string
+            blockedNamespaces:
+              type: array
+              items:
+                type: string
+
+  targets:
+  - target: admission.k8s.gatekeeper.sh
+
+    rego: |
+      package k8snamespacecommunication
+
+      violation[{"msg": msg}] {
+
+        input.review.kind.kind == "NetworkPolicy"
+
+        target_ns := input.review.object.metadata.namespace
+        target_ns == input.parameters.protectedNamespaces[_]
+
+        ingress := input.review.object.spec.ingress[_]
+        from := ingress.from[_]
+
+        # kubernetes.io/metadata.name is auto-populated by the API server on
+        # every namespace, so this matches real-world namespaceSelectors
+        # (see allow-dns.yaml) rather than a custom "name" label nothing sets.
+        blocked_ns := from.namespaceSelector.matchLabels["kubernetes.io/metadata.name"]
+        blocked_ns == input.parameters.blockedNamespaces[_]
+
+        msg := sprintf(
+          "NetworkPolicy in protected namespace '%v' must not allow ingress from blocked namespace '%v'",
+          [target_ns, blocked_ns]
+        )
+      }

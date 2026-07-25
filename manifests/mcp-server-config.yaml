@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcp-server-config
+  namespace: mcp
+data:
+  PROJECT_ID: class-6-5-tiqs
+  TARGET_NAMESPACE: app01
+  GUARDIAN_AUDIT_TOPIC: guardian-audit
+  SECURITY_EVENTS_TOPIC: raw-security-events
+  ALLOWED_CLIENT_DN_FRAGMENTS: CN=remediation-agent
+  ALLOWED_APPROVAL_SOURCES: dgc-policy,kms-human-approval
+  ALLOWED_TARGET_DEPLOYMENTS: broken-app
+  KUBECTL_TIMEOUT_SECONDS: "15"

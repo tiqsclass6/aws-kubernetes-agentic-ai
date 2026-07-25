@@ -1,0 +1,163 @@
+name: Phase 5 CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: phase5-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  TERRAFORM_VERSION: "1.15.8"
+  OPA_VERSION: "1.18.2"
+  CONFTEST_VERSION: "0.68.2"
+  TRIVY_VERSION: "0.70.0"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: python/requirements-*.txt
+
+      - name: Install live-pipeline Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          cat \
+            python/requirements-aggregator.txt \
+            python/requirements-observer-agent.txt \
+            python/requirements-correlation-agent.txt \
+            python/requirements-ir-analyst-agent.txt \
+            python/requirements-governance-agent.txt \
+            python/requirements-approval-agent.txt \
+            python/requirements-remediation-agent.txt \
+            python/requirements-reporting-agent.txt \
+            python/requirements-mcp-server.txt \
+            python/requirements-test.txt \
+            | sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+            | sort -fu > /tmp/phase5-requirements.txt
+          python -m pip install -r /tmp/phase5-requirements.txt
+
+      - name: Compile and test Python
+        env:
+          PROJECT_ID: unit-test-project
+          INPUT_SUBSCRIPTION: unit-test-subscription
+          OUTPUT_TOPIC: unit-test-topic
+          KMS_KEY_VERSION: projects/unit-test-project/locations/us-central1/keyRings/test/cryptoKeys/approval/cryptoKeyVersions/1
+          POLICY_FILE: policy/governance/remediation.rego
+        run: |
+          python -m compileall -q python
+          pytest -q python/tests
+
+      - name: Validate YAML and shell
+        run: |
+          python - <<'PY_YAML'
+          from pathlib import Path
+          import yaml
+
+          for path in sorted(Path("manifests").rglob("*.yaml")):
+              with path.open(encoding="utf-8") as handle:
+                  list(yaml.safe_load_all(handle))
+              print(f"validated {path}")
+          PY_YAML
+
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Validate Terraform
+        run: |
+          terraform -chdir=terraform fmt -check -recursive
+          terraform -chdir=terraform init -backend=false
+          terraform -chdir=terraform validate
+
+      - name: Install OPA and Conftest
+        run: |
+          curl --fail --silent --show-error --location \
+            --output /tmp/opa \
+            "https://openpolicyagent.org/downloads/v${OPA_VERSION}/opa_linux_amd64_static"
+          sudo install -m 0755 /tmp/opa /usr/local/bin/opa
+
+          curl --fail --silent --show-error --location \
+            --output /tmp/conftest.tar.gz \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          tar -xzf /tmp/conftest.tar.gz -C /tmp conftest
+          sudo install -m 0755 /tmp/conftest /usr/local/bin/conftest
+
+      - name: Test governance and Kubernetes policy
+        run: |
+          opa test policy/governance -v
+          conftest test \
+            manifests/event-aggregator.yaml \
+            manifests/observer-agent.yaml \
+            manifests/correlation-agent.yaml \
+            manifests/ir-analyst-agent.yaml \
+            manifests/governance-agent.yaml \
+            manifests/approval-agent.yaml \
+            manifests/remediation-agent.yaml \
+            manifests/reporting-agent.yaml \
+            manifests/mcp-deployment.yaml \
+            --policy policy/conftest \
+            --all-namespaces
+
+      - name: Install Trivy
+        run: |
+          archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          base_url="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+
+          curl --fail --silent --show-error --location \
+            --output "/tmp/${archive}" \
+            "${base_url}/${archive}"
+          curl --fail --silent --show-error --location \
+            --output /tmp/trivy_checksums.txt \
+            "${base_url}/trivy_${TRIVY_VERSION}_checksums.txt"
+
+          (
+            cd /tmp
+            grep " ${archive}$" trivy_checksums.txt | sha256sum --check --strict -
+            tar -xzf "${archive}" trivy
+          )
+
+          sudo install -m 0755 /tmp/trivy /usr/local/bin/trivy
+          trivy --version
+
+      - name: Scan repository with Trivy
+        run: |
+          trivy filesystem \
+            --scanners vuln,secret,misconfig \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            --format sarif \
+            --output trivy-results.sarif \
+            .
+
+      - name: Upload Trivy SARIF
+        if: >-
+          always() &&
+          hashFiles('trivy-results.sarif') != '' &&
+          (github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif

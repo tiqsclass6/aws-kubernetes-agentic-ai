@@ -1,0 +1,30 @@
+# Grants mcp-server-sa (namespace: mcp) access to the "app01" namespace, where
+# broken-app actually runs (namespace_architecture.md's demo-app namespace).
+# Role lives in "app01" (the namespace being accessed); the RoleBinding's subject
+# is a ServiceAccount in a different namespace (mcp), which is allowed.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: mcp-server-role
+  namespace: app01
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mcp-server-rolebinding
+  namespace: app01
+subjects:
+- kind: ServiceAccount
+  name: mcp-server-sa
+  namespace: mcp
+roleRef:
+  kind: Role
+  name: mcp-server-role
+  apiGroup: rbac.authorization.k8s.io

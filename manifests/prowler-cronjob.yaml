@@ -1,0 +1,153 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: prowler-gcp-scan
+  namespace: security
+  labels:
+    app.kubernetes.io/name: prowler
+    app.kubernetes.io/component: posture-scanner
+spec:
+  schedule: "43 2 * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 1800
+
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 7200
+      ttlSecondsAfterFinished: 86400
+
+      template:
+        metadata:
+          labels:
+            app: prowler-gcp-scan
+            app.kubernetes.io/name: prowler
+
+        spec:
+          restartPolicy: Never
+          serviceAccountName: prowler-ksa
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+
+            seccompProfile:
+              type: RuntimeDefault
+
+          containers:
+            - name: prowler
+              image: prowlercloud/prowler:5.35.0
+              imagePullPolicy: IfNotPresent
+
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  prowler gcp \
+                    --project-ids "${PROJECT_ID}" \
+                    --output-formats json-ocsf \
+                    --output-directory /reports \
+                    --output-filename prowler-gcp
+
+                  touch /reports/.done
+
+              env:
+                - name: PROJECT_ID
+                  value: class-6-5-tiqs
+
+                - name: GOOGLE_CLOUD_PROJECT
+                  value: class-6-5-tiqs
+
+                - name: GOOGLE_CLOUD_QUOTA_PROJECT
+                  value: class-6-5-tiqs
+
+                - name: HOME
+                  value: /tmp
+
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+
+                limits:
+                  cpu: "1"
+                  memory: 2Gi
+
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+
+                capabilities:
+                  drop:
+                    - ALL
+
+              volumeMounts:
+                - name: reports
+                  mountPath: /reports
+
+                - name: tmp
+                  mountPath: /tmp
+
+            - name: findings-publisher
+
+              image: >-
+                us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:phase2-v1
+
+              imagePullPolicy: IfNotPresent
+
+              env:
+                - name: SOURCE
+                  value: prowler
+
+                - name: INPUT_GLOB
+                  value: /reports/**/*.json
+
+                - name: DONE_FILE
+                  value: /reports/.done
+
+                - name: AGGREGATOR_URL
+                  value: >-
+                    http://event-aggregator.shared-services.svc.cluster.local:8080
+
+                - name: WAIT_TIMEOUT_SECONDS
+                  value: "6900"
+
+                - name: BATCH_SIZE
+                  value: "100"
+
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+
+                capabilities:
+                  drop:
+                    - ALL
+
+              volumeMounts:
+                - name: reports
+                  mountPath: /reports
+                  readOnly: true
+
+                - name: tmp
+                  mountPath: /tmp
+
+          volumes:
+            - name: reports
+              emptyDir: {}
+
+            - name: tmp
+              emptyDir: {}

@@ -1,0 +1,43 @@
+driver:
+  kind: modern_ebpf
+
+falco:
+  json_output: true
+  json_include_output_property: true
+  json_include_output_fields_property: true
+  json_include_tags_property: true
+  priority: notice
+
+  stdout_output:
+    enabled: true
+
+  syslog_output:
+    enabled: false
+
+  http_output:
+    enabled: true
+    url: >-
+      http://event-aggregator.shared-services.svc.cluster.local:8080/ingest/falco
+    keep_alive: true
+    user_agent: agentic-falco
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+customRules:
+  agentic-lab-rules.yaml: |-
+    - rule: Detect Curl Usage in Container
+      desc: Detect curl execution inside a container as a lab runtime-security signal
+      condition: spawned_process and container and proc.name = curl
+      output: >
+        Curl executed in container
+        (user=%user.name command=%proc.cmdline container=%container.name
+        image=%container.image.repository namespace=%k8s.ns.name pod=%k8s.pod.name)
+      priority: WARNING
+      tags: [container, network, command_and_control, agentic-lab]
