@@ -1,0 +1,91 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: security-scanners-restricted-egress
+  namespace: security
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - trivy-image-scan
+          - prowler-gcp-scan
+
+  policyTypes:
+    - Egress
+
+  egress:
+    # Send scanner reports to the event aggregator.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: shared-services
+
+          podSelector:
+            matchLabels:
+              app: event-aggregator
+
+      ports:
+        - protocol: TCP
+          port: 8080
+
+    # DNS.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+
+      ports:
+        - protocol: UDP
+          port: 53
+
+        - protocol: TCP
+          port: 53
+
+    # Workload Identity endpoint for Calico-based GKE.
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.252/32
+
+      ports:
+        - protocol: TCP
+          port: 987
+
+        - protocol: TCP
+          port: 988
+
+    # Workload Identity endpoint for GKE Dataplane V2.
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.254/32
+
+      ports:
+        - protocol: TCP
+          port: 80
+
+        - protocol: TCP
+          port: 8080
+
+    # Artifact Registry, Trivy databases, and Google APIs.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+
+            except:
+              - 10.0.0.0/8
+              - 100.64.0.0/10
+              - 127.0.0.0/8
+              - 169.254.0.0/16
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 224.0.0.0/4
+              - 240.0.0.0/4
+
+      ports:
+        - protocol: TCP
+          port: 443

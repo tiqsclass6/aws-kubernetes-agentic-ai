@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ServiceAccount
+
+metadata:
+  name: mcp-server-sa
+  namespace: mcp
+  annotations:
+    # Added when mcp-server gained a real GCP dependency (publishing to guardian-audit
+    # Pub/Sub) - it never needed Workload Identity before (kubectl-only tool calls).
+    iam.gke.io/gcp-service-account: mcp-server@class-6-5-tiqs.iam.gserviceaccount.com

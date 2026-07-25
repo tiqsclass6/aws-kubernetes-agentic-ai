@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: correlation-agent
+  namespace: ai-agents
+  annotations:
+    iam.gke.io/gcp-service-account: correlation-agent@class-6-5-tiqs.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: correlation-agent-config
+  namespace: ai-agents
+data:
+  PROJECT_ID: class-6-5-tiqs
+  INPUT_SUBSCRIPTION: correlation-agent-sub
+  OUTPUT_TOPIC: correlated-incidents
+  HEALTH_PORT: "8080"
+  FIRESTORE_DATABASE: "(default)"
+  CORRELATION_COLLECTION: correlation_windows
+  CORRELATION_WINDOW_MINUTES: "15"
+  MIN_SIGNALS: "2"
+  INCIDENT_SCORE_THRESHOLD: "40"
+  MAX_SIGNALS_PER_WINDOW: "25"
+  STATE_TTL_DAYS: "7"
+  MAX_CONCURRENT_MESSAGES: "10"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: correlation-agent
+  namespace: ai-agents
+  labels:
+    app: correlation-agent
+    app.kubernetes.io/name: correlation-agent
+    app.kubernetes.io/component: correlation
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+
+  selector:
+    matchLabels:
+      app: correlation-agent
+
+  template:
+    metadata:
+      labels:
+        app: correlation-agent
+        app.kubernetes.io/name: correlation-agent
+        app.kubernetes.io/component: correlation
+
+    spec:
+      serviceAccountName: correlation-agent
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: correlation-agent
+
+          image: >-
+            us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/correlation-agent:phase3-v1
+
+          imagePullPolicy: IfNotPresent
+
+          envFrom:
+            - configMapRef:
+                name: correlation-agent-config
+
+          ports:
+            - name: health
+              containerPort: 8080
+              protocol: TCP
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+
+            capabilities:
+              drop:
+                - ALL
+
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: health
+
+            periodSeconds: 5
+            failureThreshold: 30
+
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}

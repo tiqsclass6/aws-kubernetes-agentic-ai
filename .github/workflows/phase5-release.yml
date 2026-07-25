@@ -1,0 +1,92 @@
+name: Phase 5 Governed Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy signed image digests to GKE
+        type: boolean
+        required: true
+        default: false
+      tag:
+        description: Immutable release tag
+        type: string
+        required: true
+        default: phase5-v1
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: phase5-release
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: us-central1
+  REPOSITORY: vertex-agent-lab
+  CLUSTER_NAME: ${{ vars.GKE_CLUSTER_NAME }}
+  CLUSTER_LOCATION: ${{ vars.GKE_CLUSTER_LOCATION }}
+  RELEASE_TAG: ${{ inputs.tag }}
+  TRIVY_VERSION: "0.70.0"
+  SYFT_VERSION: "1.44.0"
+  COSIGN_OIDC_ISSUER: https://token.actions.githubusercontent.com
+  COSIGN_CERTIFICATE_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/phase5-release.yml@${{ github.ref }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    environment: production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_RELEASE_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Artifact Registry authentication
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.10.1
+
+      - name: Build, scan, attest, and sign images
+        run: ./scripts/phase5-release-images.sh
+
+      - name: Upload release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5-release-${{ inputs.tag }}
+          path: release-evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Get GKE credentials
+        if: ${{ inputs.deploy }}
+        run: |
+          gcloud container clusters get-credentials "${CLUSTER_NAME}" \
+            --location "${CLUSTER_LOCATION}" \
+            --project "${PROJECT_ID}"
+
+      - name: Deploy immutable image digests
+        if: ${{ inputs.deploy }}
+        run: |
+          ./scripts/deploy-phase5-images.sh release-evidence/image-lock.json

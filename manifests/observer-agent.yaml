@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: observer-agent
+  namespace: ai-agents
+  annotations:
+    iam.gke.io/gcp-service-account: observer-agent@class-6-5-tiqs.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: observer-agent-config
+  namespace: ai-agents
+data:
+  PROJECT_ID: class-6-5-tiqs
+  INPUT_SUBSCRIPTION: observer-agent-sub
+  OUTPUT_TOPIC: observed-findings
+  HEALTH_PORT: "8080"
+  MAX_CONCURRENT_MESSAGES: "20"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: observer-agent
+  namespace: ai-agents
+  labels:
+    app: observer-agent
+    app.kubernetes.io/name: observer-agent
+    app.kubernetes.io/component: observation
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+
+  selector:
+    matchLabels:
+      app: observer-agent
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  template:
+    metadata:
+      labels:
+        app: observer-agent
+        app.kubernetes.io/name: observer-agent
+        app.kubernetes.io/component: observation
+
+    spec:
+      serviceAccountName: observer-agent
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: observer-agent
+
+          image: >-
+            us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/observer-agent:phase3-v1
+
+          imagePullPolicy: IfNotPresent
+
+          envFrom:
+            - configMapRef:
+                name: observer-agent-config
+
+          ports:
+            - name: health
+              containerPort: 8080
+              protocol: TCP
+
+          resources:
+            requests:
+              cpu: 75m
+              memory: 96Mi
+
+            limits:
+              cpu: 300m
+              memory: 256Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+
+            capabilities:
+              drop:
+                - ALL
+
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: health
+
+            periodSeconds: 5
+            failureThreshold: 30
+
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}

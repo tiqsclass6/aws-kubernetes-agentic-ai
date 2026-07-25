@@ -1,0 +1,156 @@
+# SERVICE ACCOUNTS
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jennifer
+  namespace: app01
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chewbacca
+  namespace: app01
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: malgus
+  namespace: app01
+
+# READ-ONLY ROLE
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: app01
+  name: read-only-role
+
+rules:
+- apiGroups: [""]
+  resources:
+    - pods
+    - services
+    - configmaps
+    - events
+    - pods/log
+  verbs:
+    - get
+    - list
+    - watch
+
+- apiGroups: ["apps"]
+  resources:
+    - deployments
+    - replicasets
+  verbs:
+    - get
+    - list
+    - watch
+
+# USER ROLE
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: app01
+  name: user-role
+
+rules:
+- apiGroups: [""]
+  resources:
+    - pods
+    - services
+    - configmaps
+    - events
+    - pods/log
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+
+- apiGroups: ["apps"]
+  resources:
+    - deployments
+    - replicasets
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+
+# ADMIN ROLE
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: app01
+  name: admin-role
+
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+
+# ROLE BINDINGS
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jennifer-readonly-binding
+  namespace: app01
+
+subjects:
+- kind: ServiceAccount
+  name: jennifer
+  namespace: app01
+
+roleRef:
+  kind: Role
+  name: read-only-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: chewbacca-user-binding
+  namespace: app01
+
+subjects:
+- kind: ServiceAccount
+  name: chewbacca
+  namespace: app01
+
+roleRef:
+  kind: Role
+  name: user-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: malgus-admin-binding
+  namespace: app01
+
+subjects:
+- kind: ServiceAccount
+  name: malgus
+  namespace: app01
+
+roleRef:
+  kind: Role
+  name: admin-role
+  apiGroup: rbac.authorization.k8s.io

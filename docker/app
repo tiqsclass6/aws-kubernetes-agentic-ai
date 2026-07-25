@@ -1,0 +1,13 @@
+# broken-app Dockerfile (now actually working - see manifests/postgres.yaml)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1
+
+COPY requirements-app.txt .
+RUN pip install --no-cache-dir -r requirements-app.txt
+
+COPY app.py .
+
+CMD ["python", "app.py"]

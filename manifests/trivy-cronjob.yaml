@@ -1,0 +1,231 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: trivy-image-scan
+  namespace: security
+  labels:
+    app.kubernetes.io/name: trivy
+    app.kubernetes.io/component: vulnerability-scanner
+spec:
+  schedule: "17 */6 * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 900
+
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 2700
+      ttlSecondsAfterFinished: 86400
+
+      template:
+        metadata:
+          labels:
+            app: trivy-image-scan
+            app.kubernetes.io/name: trivy
+
+        spec:
+          restartPolicy: Never
+          serviceAccountName: trivy-ksa
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
+            fsGroup: 10000
+
+            seccompProfile:
+              type: RuntimeDefault
+
+          initContainers:
+            - name: artifact-registry-token
+
+              image: >-
+                us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:phase2-v1
+
+              imagePullPolicy: IfNotPresent
+
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  python - <<'PY'
+                  from pathlib import Path
+
+                  import requests
+
+                  response = requests.get(
+                      "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+                      headers={"Metadata-Flavor": "Google"},
+                      timeout=15,
+                  )
+
+                  response.raise_for_status()
+
+                  Path("/auth/access-token").write_text(
+                      response.json()["access_token"],
+                      encoding="utf-8",
+                  )
+                  PY
+
+                  chmod 0400 /auth/access-token
+
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+
+                capabilities:
+                  drop:
+                    - ALL
+
+              volumeMounts:
+                - name: registry-auth
+                  mountPath: /auth
+
+                - name: tmp
+                  mountPath: /tmp
+
+          containers:
+            - name: trivy
+              image: aquasec/trivy:0.71.1
+              imagePullPolicy: IfNotPresent
+
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  cat /auth/access-token | trivy registry login \
+                    --username oauth2accesstoken \
+                    --password-stdin \
+                    us-central1-docker.pkg.dev
+
+                  index=0
+
+                  for image in ${TARGET_IMAGES}; do
+                    index=$((index + 1))
+
+                    trivy image \
+                      --format json \
+                      --output "/reports/trivy-${index}.json" \
+                      --cache-dir /cache \
+                      --timeout 20m \
+                      --scanners vuln,misconfig,secret \
+                      "${image}"
+                  done
+
+                  touch /reports/.done
+
+              env:
+                - name: HOME
+                  value: /tmp
+
+                - name: TARGET_IMAGES
+                  value: >-
+                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/vertex-agent:phase1-v1
+                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/mcp-server:phase1-v1
+                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/event-aggregator:phase2-v1
+                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:phase2-v1
+
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
+
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+
+                capabilities:
+                  drop:
+                    - ALL
+
+              volumeMounts:
+                - name: registry-auth
+                  mountPath: /auth
+                  readOnly: true
+
+                - name: reports
+                  mountPath: /reports
+
+                - name: trivy-cache
+                  mountPath: /cache
+
+                - name: tmp
+                  mountPath: /tmp
+
+            - name: findings-publisher
+
+              image: >-
+                us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:phase2-v1
+
+              imagePullPolicy: IfNotPresent
+
+              env:
+                - name: SOURCE
+                  value: trivy
+
+                - name: INPUT_GLOB
+                  value: /reports/trivy-*.json
+
+                - name: DONE_FILE
+                  value: /reports/.done
+
+                - name: AGGREGATOR_URL
+                  value: >-
+                    http://event-aggregator.shared-services.svc.cluster.local:8080
+
+                - name: WAIT_TIMEOUT_SECONDS
+                  value: "2400"
+
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+
+                capabilities:
+                  drop:
+                    - ALL
+
+              volumeMounts:
+                - name: reports
+                  mountPath: /reports
+                  readOnly: true
+
+                - name: tmp
+                  mountPath: /tmp
+
+          volumes:
+            - name: registry-auth
+              emptyDir: {}
+
+            - name: reports
+              emptyDir: {}
+
+            - name: trivy-cache
+              emptyDir: {}
+
+            - name: tmp
+              emptyDir: {}

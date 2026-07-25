@@ -1,0 +1,172 @@
+# Observer, Correlation, IR Analyst, and Reporting agents need DNS, Workload
+# Identity metadata, and public HTTPS for Google APIs. Reporting may also reach
+# Slack and Jira over HTTPS when those integrations are enabled.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: phase3-cloud-api-egress
+  namespace: ai-agents
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - observer-agent
+          - correlation-agent
+          - ir-analyst-agent
+          - reporting-agent
+
+  policyTypes:
+    - Egress
+
+  egress:
+    # DNS.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+
+      ports:
+        - protocol: UDP
+          port: 53
+
+        - protocol: TCP
+          port: 53
+
+    # Workload Identity endpoint for Calico-based GKE.
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.252/32
+
+      ports:
+        - protocol: TCP
+          port: 987
+
+        - protocol: TCP
+          port: 988
+
+    # Workload Identity endpoint for GKE Dataplane V2.
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.254/32
+
+      ports:
+        - protocol: TCP
+          port: 80
+
+        - protocol: TCP
+          port: 8080
+
+    # Google APIs, Slack, and Jira over public HTTPS.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+
+            except:
+              - 10.0.0.0/8
+              - 100.64.0.0/10
+              - 127.0.0.0/8
+              - 169.254.0.0/16
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 224.0.0.0/4
+              - 240.0.0.0/4
+
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# The remediation agent needs the same GCP API access for Pub/Sub plus a single
+# private path to the MCP security gateway.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: remediation-agent-egress
+  namespace: ai-agents
+spec:
+  podSelector:
+    matchLabels:
+      app: remediation-agent
+
+  policyTypes:
+    - Egress
+
+  egress:
+    # MCP gateway only.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mcp-gateway
+
+          podSelector:
+            matchLabels:
+              app: mcp-gateway
+
+      ports:
+        - protocol: TCP
+          port: 8443
+
+    # DNS.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+
+      ports:
+        - protocol: UDP
+          port: 53
+
+        - protocol: TCP
+          port: 53
+
+    # Workload Identity endpoint for Calico-based GKE.
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.252/32
+
+      ports:
+        - protocol: TCP
+          port: 987
+
+        - protocol: TCP
+          port: 988
+
+    # Workload Identity endpoint for GKE Dataplane V2.
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.254/32
+
+      ports:
+        - protocol: TCP
+          port: 80
+
+        - protocol: TCP
+          port: 8080
+
+    # Pub/Sub and other required Google APIs over public HTTPS.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+
+            except:
+              - 10.0.0.0/8
+              - 100.64.0.0/10
+              - 127.0.0.0/8
+              - 169.254.0.0/16
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 224.0.0.0/4
+              - 240.0.0.0/4
+
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,54 @@
+# Deployment name kept as "broken-app" (vertex-agent/mcp-server both reference it via
+# TARGET_DEPLOYMENT) even though it's no longer broken - it now makes a real
+# connection to the postgres Deployment in postgres.yaml instead of printing a
+# hardcoded fake error. See python/app.py.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: broken-app
+  namespace: app01
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: broken-app
+  template:
+    metadata:
+      labels:
+        app: broken-app
+    spec:
+      containers:
+      - name: broken-app
+        image: us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/app:v1
+        imagePullPolicy: Always
+        env:
+        - name: DB_HOST
+          value: "postgres.app01.svc.cluster.local"
+        - name: DB_PORT
+          value: "5432"
+        # postgres-credentials' keys are POSTGRES_* (postgres:16-alpine's own expected
+        # init env vars, see postgres.yaml) - app.py expects DB_NAME/DB_USER/DB_PASSWORD,
+        # so map them explicitly rather than duplicating literal values here that could
+        # drift from the Secret.
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: POSTGRES_DB
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: POSTGRES_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: POSTGRES_PASSWORD
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"

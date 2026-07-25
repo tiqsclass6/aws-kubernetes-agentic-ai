@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: structured-logger
+  namespace: app01
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: structured-logger
+
+  template:
+    metadata:
+      labels:
+        app: structured-logger
+
+    spec:
+      containers:
+      - name: logger
+        image: python:3.11-slim
+
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+
+        command:
+        - python
+        - -c
+        - |
+          import json
+          import time
+          import random
+          from datetime import datetime
+
+          while True:
+              log = {
+                  "timestamp": datetime.utcnow().isoformat(),
+                  "severity": random.choice(
+                      ["INFO", "WARNING", "ERROR"]
+                  ),
+                  "service": "auth-api",
+                  "event_type": random.choice(
+                      ["login_success", "failed_login"]
+                  ),
+                  "source_ip": "10.10.1.15"
+              }
+
+              print(json.dumps(log), flush=True)
+
+              time.sleep(5)

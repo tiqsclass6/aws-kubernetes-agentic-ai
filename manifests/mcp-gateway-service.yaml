@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-gateway
+  namespace: mcp-gateway
+  labels:
+    app.kubernetes.io/name: mcp-gateway
+spec:
+  type: ClusterIP
+
+  selector:
+    app: mcp-gateway
+
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: https

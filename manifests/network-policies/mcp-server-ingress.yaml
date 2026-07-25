@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-allow-gateway-only
+  namespace: mcp
+spec:
+  podSelector:
+    matchLabels:
+      app: mcp-server
+
+  policyTypes:
+    - Ingress
+
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mcp-gateway
+
+          podSelector:
+            matchLabels:
+              app: mcp-gateway
+
+      ports:
+        - protocol: TCP
+          port: 9000

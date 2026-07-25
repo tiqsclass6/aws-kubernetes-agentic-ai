@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: sample-security-events
+  namespace: shared-services
+
+data:
+
+  falco-event.json: |
+    {
+      "priority": "Critical",
+      "rule": "Terminal shell in container",
+      "output": "Shell spawned in app01"
+    }
+
+  prowler-event.json: |
+    {
+      "severity": "High",
+      "check": "Audit Logging Disabled"
+    }
+
+  k8-event.json: |
+    {
+      "reason": "BackOff",
+      "message": "Back-off restarting failed container"
+    }

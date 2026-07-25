@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: governance-agent
+  namespace: ai-governance
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: governance-agent

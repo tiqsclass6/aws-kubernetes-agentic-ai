@@ -1,0 +1,17 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sNamespaceCommunication
+
+metadata:
+  name: restrict-mcp-access
+
+spec:
+  match:
+    kinds:
+    - apiGroups: ["networking.k8s.io"]
+      kinds: ["NetworkPolicy"]
+
+  parameters:
+    protectedNamespaces:
+    - mcp
+    blockedNamespaces:
+    - app01
