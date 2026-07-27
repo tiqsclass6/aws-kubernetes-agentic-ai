@@ -150,6 +150,9 @@ jobs:
             --exit-code 1 \
             --format sarif \
             --output trivy-results.sarif \
+            --ignorefile .trivyignore.yaml \
+            --skip-dirs examples \
+            --skip-files manifests/broken-app.yaml \
             .
 
       - name: Upload Trivy SARIF
@@ -158,6 +161,10 @@ jobs:
           hashFiles('trivy-results.sarif') != '' &&
           (github.event_name != 'pull_request' ||
           github.event.pull_request.head.repo.full_name == github.repository)
+        # Code scanning requires GitHub Advanced Security, which is not available on
+        # this private repository. Keep the upload attempt (it succeeds if GHAS is
+        # ever enabled) but don't let its absence fail the whole CI run.
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif

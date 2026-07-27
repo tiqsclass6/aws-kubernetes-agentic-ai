@@ -1,0 +1,8 @@
+# PUBLISH_PASSED_FINDINGS is a boolean feature flag, and *_SECRET_ID values are
+# Secret Manager reference names looked up at runtime -- not secret material.
+# KSV-0109's heuristic flags the key names; there is nothing to redact here.
+misconfigurations:
+  - id: KSV-0109
+    paths:
+      - "manifests/event-aggregator.yaml"
+      - "manifests/reporting-agent.yaml"

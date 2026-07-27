@@ -52,6 +52,10 @@ resource "google_container_node_pool" "primary" {
       role = "general"
     }
 
+    metadata = {
+      disable-legacy-endpoints = "true"
+    }
+
     shielded_instance_config {
       enable_secure_boot          = true
       enable_integrity_monitoring = true
