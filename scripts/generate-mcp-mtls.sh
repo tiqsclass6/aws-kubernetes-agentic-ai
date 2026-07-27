@@ -44,6 +44,27 @@ DNS.3 = mcp-gateway.mcp-gateway.svc
 DNS.4 = mcp-gateway.mcp-gateway.svc.cluster.local
 EOF
 
+create_ca_config() {
+  local common_name="$1"
+  local output_file="$2"
+
+  cat > "${output_file}" <<EOF
+[req]
+prompt = no
+distinguished_name = distinguished_name
+x509_extensions = ca_extensions
+
+[distinguished_name]
+CN = ${common_name}
+O = agentic-security-lab
+
+[ca_extensions]
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, keyCertSign, cRLSign
+subjectKeyIdentifier = hash
+EOF
+}
+
 create_client_config() {
   local common_name="$1"
   local output_file="$2"
@@ -108,13 +129,15 @@ openssl genrsa \
   -out "${WORK_DIR}/server-ca.key" \
   4096
 
+create_ca_config "agentic-mcp-server-ca" "${WORK_DIR}/server-ca.cnf"
+
 openssl req \
   -x509 \
   -new \
   -sha256 \
   -days 3650 \
   -key "${WORK_DIR}/server-ca.key" \
-  -subj "/CN=agentic-mcp-server-ca/O=agentic-security-lab" \
+  -config "${WORK_DIR}/server-ca.cnf" \
   -out "${WORK_DIR}/server-ca.crt"
 
 openssl genrsa \
@@ -150,13 +173,15 @@ openssl genrsa \
   -out "${WORK_DIR}/client-ca.key" \
   4096
 
+create_ca_config "agentic-mcp-client-ca" "${WORK_DIR}/client-ca.cnf"
+
 openssl req \
   -x509 \
   -new \
   -sha256 \
   -days 3650 \
   -key "${WORK_DIR}/client-ca.key" \
-  -subj "/CN=agentic-mcp-client-ca/O=agentic-security-lab" \
+  -config "${WORK_DIR}/client-ca.cnf" \
   -out "${WORK_DIR}/client-ca.crt"
 
 # Phase 3 issues a client identity only to the dedicated remediation agent.

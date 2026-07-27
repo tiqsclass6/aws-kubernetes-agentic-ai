@@ -25,13 +25,12 @@ spec:
   policyTypes:
     - Egress
   egress:
+    # kube-dns's ClusterIP, not a podSelector: Calico on this cluster does not
+    # reliably enforce namespaceSelector+podSelector egress rules targeting
+    # kube-dns, silently dropping DNS queries even though the rule matches.
     - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-          podSelector:
-            matchLabels:
-              k8s-app: kube-dns
+        - ipBlock:
+            cidr: 10.112.0.10/32
       ports:
         - protocol: UDP
           port: 53
