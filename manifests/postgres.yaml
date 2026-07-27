@@ -17,6 +17,9 @@ spec:
       labels:
         app: postgres
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: postgres
         image: postgres:16-alpine
@@ -25,10 +28,24 @@ spec:
             name: postgres-credentials
         ports:
         - containerPort: 5432
+        # The upstream entrypoint starts as root to chown $PGDATA and the socket
+        # directory, then drops privileges itself (gosu) before running postgres --
+        # it cannot be forced to runAsNonRoot. readOnlyRootFilesystem is still safe
+        # since every path it writes to is one of the volumes mounted below.
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         volumeMounts:
         - name: pgdata
           mountPath: /var/lib/postgresql/data
           subPath: pgdata
+        - name: run
+          mountPath: /var/run/postgresql
+        - name: tmp
+          mountPath: /tmp
         readinessProbe:
           exec:
             command: ["pg_isready", "-U", "appuser", "-d", "appdb"]
@@ -43,6 +60,10 @@ spec:
             cpu: "300m"
       volumes:
       - name: pgdata
+        emptyDir: {}
+      - name: run
+        emptyDir: {}
+      - name: tmp
         emptyDir: {}
 ---
 apiVersion: v1
