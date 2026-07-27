@@ -71,7 +71,7 @@ spec:
         - name: reporting-agent
 
           image: >-
-            us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/reporting-agent:phase3-v1
+            us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/reporting-agent:phase5-v1
 
           imagePullPolicy: IfNotPresent
 

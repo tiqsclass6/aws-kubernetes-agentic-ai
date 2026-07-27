@@ -30,14 +30,13 @@ spec:
         - containerPort: 5432
         # The upstream entrypoint starts as root to chown $PGDATA and the socket
         # directory, then drops privileges itself (gosu) before running postgres --
-        # it cannot be forced to runAsNonRoot. readOnlyRootFilesystem is still safe
-        # since every path it writes to is one of the volumes mounted below.
+        # it cannot be forced to runAsNonRoot, and needs CAP_CHOWN/CAP_SETUID/
+        # CAP_SETGID for that dance, so capabilities cannot be dropped either.
+        # readOnlyRootFilesystem is still safe since every path it writes to is
+        # one of the volumes mounted below.
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-          capabilities:
-            drop:
-            - ALL
         volumeMounts:
         - name: pgdata
           mountPath: /var/lib/postgresql/data
