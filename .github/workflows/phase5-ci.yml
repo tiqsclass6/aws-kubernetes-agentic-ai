@@ -28,10 +28,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -81,7 +81,7 @@ jobs:
           find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
@@ -165,6 +165,6 @@ jobs:
         # this private repository. Keep the upload attempt (it succeeds if GHAS is
         # ever enabled) but don't let its absence fail the whole CI run.
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
