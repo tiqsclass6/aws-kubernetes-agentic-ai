@@ -28,10 +28,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -165,6 +165,6 @@ jobs:
         # this private repository. Keep the upload attempt (it succeeds if GHAS is
         # ever enabled) but don't let its absence fail the whole CI run.
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v4.37.3
         with:
           sarif_file: trivy-results.sarif
