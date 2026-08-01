@@ -1,6 +1,6 @@
 google-cloud-pubsub==2.39.0
 google-cloud-firestore==2.28.0
-google-cloud-kms==3.15.0
+google-cloud-kms==3.16.0
 cryptography==49.0.0
 pydantic==2.13.4
-prometheus-client==0.25.0
+prometheus-client==0.26.0
