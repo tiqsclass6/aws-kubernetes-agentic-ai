@@ -1,4 +1,4 @@
 google-cloud-pubsub==2.39.0
-google-genai==2.13.0
+google-genai==2.16.0
 pydantic==2.13.4
-prometheus-client==0.25.0
+prometheus-client==0.26.0
