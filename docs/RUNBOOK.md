@@ -405,15 +405,15 @@ reviewed.
 The workflow files use the project compatibility references:
 
 ```yaml
-actions/checkout@v4
-actions/setup-python@v5
-hashicorp/setup-terraform@v3
-github/codeql-action/upload-sarif@v3
-google-github-actions/auth@v2
-google-github-actions/setup-gcloud@v2
-docker/setup-buildx-action@v3
-sigstore/cosign-installer@v3.10.1
-actions/upload-artifact@v4
+actions/checkout@v5
+actions/setup-python@v6
+hashicorp/setup-terraform@v4
+github/codeql-action/upload-sarif@v4
+actions/upload-artifact@v7
+google-github-actions/auth@v3
+google-github-actions/setup-gcloud@v3
+docker/setup-buildx-action@v4
+sigstore/cosign-installer@v4.1.2
 ```
 
 If VS Code reports that all of them are unresolved, inspect:
