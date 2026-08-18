@@ -23,7 +23,7 @@ is_opa_image(image) if startswith(image, "openpolicyagent/opa:")
 vendor_images := {
   "nginx:1.27.4-alpine",          # manifests/mcp-gateway-deployment.yaml
   "postgres:16-alpine",           # manifests/postgres.yaml
-  "aquasec/trivy:0.71.1",         # manifests/trivy-cronjob.yaml
+  "aquasec/trivy:0.74.0",         # manifests/trivy-cronjob.yaml
   "prowlercloud/prowler:5.35.0",  # manifests/prowler-cronjob.yaml
 }
 
