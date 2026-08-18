@@ -51,21 +51,6 @@ terraform -chdir="${ROOT_DIR}/terraform" init -backend=false -input=false
 terraform -chdir="${ROOT_DIR}/terraform" validate
 
 echo "[8/8] Evaluating Kubernetes manifests with Conftest..."
-conftest_manifests=(
-  "${ROOT_DIR}/manifests/event-aggregator.yaml"
-  "${ROOT_DIR}/manifests/observer-agent.yaml"
-  "${ROOT_DIR}/manifests/correlation-agent.yaml"
-  "${ROOT_DIR}/manifests/ir-analyst-agent.yaml"
-  "${ROOT_DIR}/manifests/governance-agent.yaml"
-  "${ROOT_DIR}/manifests/approval-agent.yaml"
-  "${ROOT_DIR}/manifests/remediation-agent.yaml"
-  "${ROOT_DIR}/manifests/reporting-agent.yaml"
-  "${ROOT_DIR}/manifests/mcp-deployment.yaml"
-)
-
-conftest test \
-  "${conftest_manifests[@]}" \
-  --policy "${ROOT_DIR}/policy/conftest" \
-  --all-namespaces
+bash "${ROOT_DIR}/scripts/conftest-test.sh"
 
 echo "Phase 5 validation passed."

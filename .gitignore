@@ -9,6 +9,16 @@
 crash.log
 crash.*.log
 
+# Local plans (can include computed IPs and other values)
+*.tfplan
+tfplan
+destroy.tfplan
+
+# Local validation traces
+*.trace
+phase5-validate.trace
+phase5-validation-trace.log
+
 *.tfvars
 *.tfvars.json
 
@@ -21,6 +31,14 @@ override.tf.json
 .terraformrc
 terraform.rc
 .terraform.lock.hcl
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Service account key files, if used instead of Application Default Credentials
 *.json

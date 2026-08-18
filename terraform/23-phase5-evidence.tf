@@ -4,6 +4,13 @@ resource "google_project_service" "bigquery" {
   disable_on_destroy = false
 }
 
+resource "google_service_account" "governance_evidence_admin" {
+  project      = var.project_id
+  account_id   = "phase5-evidence-admin"
+  display_name = "Phase 5 Governance Evidence Administrator"
+  description  = "Organization-permitted identity used to own the Phase 5 BigQuery evidence dataset."
+}
+
 resource "google_bigquery_dataset" "governance_evidence" {
   project                     = var.project_id
   dataset_id                  = var.phase5_evidence_dataset_id
@@ -19,6 +26,13 @@ resource "google_bigquery_dataset" "governance_evidence" {
   }
 
   depends_on = [google_project_service.bigquery]
+}
+
+resource "google_bigquery_dataset_access" "governance_evidence_owner" {
+  project       = var.project_id
+  dataset_id    = google_bigquery_dataset.governance_evidence.dataset_id
+  role          = "OWNER"
+  user_by_email = google_service_account.governance_evidence_admin.email
 }
 
 resource "google_logging_project_sink" "governance_evidence" {
@@ -38,11 +52,11 @@ resource "google_logging_project_sink" "governance_evidence" {
   EOT
 }
 
-resource "google_bigquery_dataset_iam_member" "governance_sink_writer" {
+resource "google_bigquery_dataset_access" "governance_sink_writer" {
   project    = var.project_id
   dataset_id = google_bigquery_dataset.governance_evidence.dataset_id
-  role       = "roles/bigquery.dataEditor"
-  member     = google_logging_project_sink.governance_evidence.writer_identity
+  role       = "WRITER"
+  iam_member = google_logging_project_sink.governance_evidence.writer_identity
 }
 
 resource "google_monitoring_alert_policy" "approval_request_backlog" {
