@@ -1,0 +1,24 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: agent-metrics
+  namespace: ai-agents
+  labels:
+    app.kubernetes.io/part-of: agentic-security
+    app.kubernetes.io/component: observability
+spec:
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - observer-agent
+          - correlation-agent
+          - ir-analyst-agent
+          - remediation-agent
+          - reporting-agent
+  endpoints:
+    - port: health
+      path: /metrics
+      interval: 30s
+      timeout: 10s

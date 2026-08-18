@@ -46,7 +46,7 @@ POLICY_FILE = os.environ.get(
     "POLICY_FILE",
     "/policies/remediation.rego",
 )
-POLICY_ID = os.environ.get("POLICY_ID", "phase5-remediation")
+POLICY_ID = os.environ.get("POLICY_ID", "remediation")
 POLICY_VERSION = os.environ.get("POLICY_VERSION", "1.0.0")
 AUTOMATION_MODE = os.environ.get("AUTOMATION_MODE", "disabled").strip().lower()
 DECISION_TTL_SECONDS = int(os.environ.get("DECISION_TTL_SECONDS", "900"))
@@ -68,7 +68,7 @@ ALLOWED_DEPLOYMENTS = {
 }
 
 http = requests.Session()
-http.headers.update({"User-Agent": "agentic-governance-agent/phase5"})
+http.headers.update({"User-Agent": "agentic-governance-agent/1.0"})
 
 publisher = pubsub_v1.PublisherClient()
 approval_topic_path = publisher.topic_path(PROJECT_ID, APPROVAL_REQUESTS_TOPIC)

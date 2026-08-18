@@ -117,7 +117,7 @@ http = requests.Session()
 http.headers.update(
     {
         "User-Agent": (
-            "agentic-reporting-agent/phase5"
+            "agentic-reporting-agent/1.0"
         )
     }
 )

@@ -1,6 +1,6 @@
-# Lab 1C — Introduction to the Model Context Protocol (MCP)
+# **Lab 1C — Introduction to the Model Context Protocol (MCP)**
 
-What is MCP?
+**What is MCP?**
 
 Imagine you have a very intelligent AI assistant.
 
@@ -36,7 +36,7 @@ It provides a standardized way for AI models to connect to external tools and se
 
 Instead of every AI vendor inventing a different API for every application, MCP defines a common protocol that allows AI systems to discover and use tools consistently.
 
-Why Was MCP Created?
+**Why Was MCP Created?**
 
 Before MCP:
 
@@ -66,7 +66,7 @@ Now AI systems communicate with external services using a common protocol.
 
 This makes integrations easier to build, easier to secure, and easier to maintain.
 
-What Problems Does MCP Solve?
+**What Problems Does MCP Solve?**
 
 Without MCP:
 
@@ -83,7 +83,7 @@ With MCP:
     Easier security controls
     Easier auditing
 
-## What Does an MCP Server Actually Do?
+## **What Does an MCP Server Actually Do?**
 
 Think of the MCP Server as a tool broker. It answers questions like:
 
@@ -101,7 +101,7 @@ Instead:
      | Request
      |
      v
-    MCP Server
+**MCP Server**
     
      |
      | Authorized Tool
@@ -111,7 +111,7 @@ Instead:
 
 The MCP Server becomes the trusted intermediary.
 
-Example
+**Example**
 
     A user asks: "How many pods are running in namespace app01?"
 
@@ -123,7 +123,7 @@ Instead:
     ↓
     Claude
     ↓
-    MCP Server
+**MCP Server**
     ↓
     kubectl get pods -n app01
     ↓
@@ -133,7 +133,7 @@ Instead:
 
 The AI reasons about the output. The MCP Server performs the action.
 
-## Why This Matters for Security
+## **Why This Matters for Security**
 
 Imagine an AI connected directly to your Kubernetes cluster. That would be dangerous. Instead, the MCP Server provides security controls such as:
 
@@ -150,7 +150,7 @@ In our architecture we add even more protection:
     ↓
     mTLS Gateway
     ↓
-    MCP Server
+**MCP Server**
     ↓
     OPA Policy Check
     ↓
@@ -160,7 +160,7 @@ In our architecture we add even more protection:
 
 Notice that several security layers exist before any command reaches the cluster.
 
-## MCP in Our Lab
+## **MCP in Our Lab**
 
 Our implementation treats the MCP Server as a secure application gateway rather than simply a protocol endpoint.
 
@@ -176,7 +176,7 @@ The architecture includes:
 
 This approach demonstrates how MCP can be deployed in enterprise environments where security and governance are just as important as AI functionality.
 
-## Why Employers Care
+## **Why Employers Care**
 
 Many organizations are moving beyond simple chatbots. They want AI that can:
 
@@ -191,7 +191,7 @@ MCP provides one of the emerging standards for connecting AI systems to those en
 
 Understanding MCP demonstrates that an engineer understands not only AI prompting, but also how AI integrates with production infrastructure.
 
-## Key Takeaways
+## **Key Takeaways**
 
 By the end of this lab, students should understand:
 

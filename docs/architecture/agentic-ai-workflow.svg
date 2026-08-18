@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1720 1320" role="img" aria-labelledby="title desc">
+  <title id="title">Governed Agentic Security Workflow</title>
+  <desc id="desc">
+    End-to-end workflow for the agentic lab: GitHub Actions supply chain, telemetry
+    ingestion, multi-agent analysis, OPA governance with optional signed human
+    approval, MCP-brokered remediation on GKE, and BigQuery evidence.
+  </desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1.2 L 10 5 L 0 8.8 Z" fill="#7d8b99"/>
+    </marker>
+    <marker id="arrow-flow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1.2 L 10 5 L 0 8.8 Z" fill="#5eead4"/>
+    </marker>
+    <marker id="arrow-gov" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1.2 L 10 5 L 0 8.8 Z" fill="#c4b5fd"/>
+    </marker>
+    <marker id="arrow-human" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1.2 L 10 5 L 0 8.8 Z" fill="#fbbf24"/>
+    </marker>
+    <linearGradient id="header-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5eead4" stop-opacity="0"/>
+      <stop offset="0.2" stop-color="#5eead4"/>
+      <stop offset="0.8" stop-color="#c4b5fd"/>
+      <stop offset="1" stop-color="#c4b5fd" stop-opacity="0"/>
+    </linearGradient>
+    <style type="text/css">
+      <![CDATA[
+      .bg { fill: #0b0f14; }
+      .panel { fill: #12181f; stroke: #243040; stroke-width: 1; }
+      .card { fill: #1a222c; stroke: #2c3948; stroke-width: 1; }
+      .card-strong { fill: #1c2733; stroke: #3d4f63; stroke-width: 1; }
+      .title { fill: #f3f6f9; font: 700 26px "Segoe UI", Inter, Helvetica, Arial, sans-serif; }
+      .subtitle { fill: #8b98a5; font: 400 12px "Segoe UI", Inter, Helvetica, Arial, sans-serif; }
+      .lane { fill: #f3f6f9; font: 700 11px "Segoe UI", Inter, Helvetica, Arial, sans-serif; letter-spacing: 1.6px; }
+      .lane-muted { fill: #6b7785; font: 400 11px "Segoe UI", Inter, Helvetica, Arial, sans-serif; }
+      .h { fill: #e8eef4; font: 650 13px "Segoe UI", Inter, Helvetica, Arial, sans-serif; }
+      .p { fill: #9aa8b5; font: 400 11px "Segoe UI", Inter, Helvetica, Arial, sans-serif; }
+      .mono { fill: #9fd9cf; font: 500 10px ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace; }
+      .mono-amber { fill: #f5d58a; font: 500 10px ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace; }
+      .mono-purple { fill: #d6c8ff; font: 500 10px ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace; }
+      .chip { fill: #0f161d; stroke: #2c3948; stroke-width: 1; }
+      .ns { fill: #7d8b99; font: 500 9px "Segoe UI", Inter, Helvetica, Arial, sans-serif; letter-spacing: 0.6px; }
+      .num { fill: #5eead4; font: 700 11px ui-monospace, "Cascadia Mono", Consolas, monospace; }
+      .bus { fill: none; stroke: #5eead4; stroke-width: 1.5; }
+      .flow { fill: none; stroke: #5eead4; stroke-width: 1.5; marker-end: url(#arrow-flow); }
+      .flow-soft { fill: none; stroke: #7d8b99; stroke-width: 1.15; marker-end: url(#arrow); }
+      .join { fill: none; stroke: #7d8b99; stroke-width: 1.15; }
+      .flow-gov { fill: none; stroke: #c4b5fd; stroke-width: 1.5; marker-end: url(#arrow-gov); }
+      .join-gov { fill: none; stroke: #c4b5fd; stroke-width: 1.5; }
+      .flow-human { fill: none; stroke: #fbbf24; stroke-width: 1.5; marker-end: url(#arrow-human); }
+    ]]>
+    </style>
+  </defs>
+  <rect class="bg" width="1720" height="1320"/>
+<!--Header-->
+  <text class="title" x="48" y="42">Governed Agentic Security Workflow</text>
+  <text class="subtitle" x="48" y="64">
+    <tspan x="48" dy="0">lab: GitHub Actions to GKE agents, OPA / KMS approval,</tspan>
+    <tspan x="48" dy="16">MCP-brokered remediation. Fail-closed by default.</tspan>
+  </text>
+  <rect x="48" y="96" width="1624" height="1.5" fill="url(#header-line)"/>
+  <g transform="translate(1188, 28)">
+    <rect class="chip" x="0" y="0" width="12" height="12" rx="2"/>
+    <line x1="2" y1="6" x2="10" y2="6" stroke="#5eead4" stroke-width="2"/>
+    <text class="p" x="18" y="11">event pipeline</text>
+    <rect class="chip" x="120" y="0" width="12" height="12" rx="2"/>
+    <line x1="122" y1="6" x2="130" y2="6" stroke="#c4b5fd" stroke-width="2"/>
+    <text class="p" x="138" y="11">governance</text>
+    <rect class="chip" x="224" y="0" width="12" height="12" rx="2"/>
+    <line x1="226" y1="6" x2="234" y2="6" stroke="#fbbf24" stroke-width="2"/>
+    <text class="p" x="242" y="11">human + KMS</text>
+    <rect class="chip" x="338" y="0" width="12" height="12" rx="2"/>
+    <line x1="340" y1="6" x2="348" y2="6" stroke="#7d8b99" stroke-width="2"/>
+    <text class="p" x="356" y="11">support</text>
+  </g>
+<!--01 Supply chain-->
+  <g id="supply-chain">
+    <rect class="panel" x="40" y="112" width="1640" height="228" rx="16"/>
+    <text class="num" x="64" y="138">01</text>
+    <text class="lane" x="96" y="138">SUPPLY CHAIN</text>
+    <text class="lane-muted" x="232" y="138">ci.yml route tree / release.yml signed images</text>
+    <rect class="card" x="64" y="160" width="136" height="72" rx="10"/>
+    <text class="h" x="132" y="188" text-anchor="middle">GitHub</text>
+    <text class="p" x="132" y="206" text-anchor="middle">
+      <tspan x="132" dy="0">push /</tspan>
+      <tspan x="132" dy="14">pull_request</tspan>
+    </text>
+    <path class="flow-soft" d="M 200 196 H 228"/>
+    <rect class="card-strong" x="228" y="160" width="108" height="72" rx="10"/>
+    <text class="h" x="282" y="188" text-anchor="middle">Lint</text>
+    <text class="p" x="282" y="206" text-anchor="middle">
+      <tspan x="282" dy="0">YAML and</tspan>
+      <tspan x="282" dy="14">shell</tspan>
+    </text>
+    <path class="join" d="M 336 196 H 352"/>
+    <path class="join" d="M 352 174 V 250"/>
+    <path class="flow-soft" d="M 352 174 H 368"/>
+    <path class="flow-soft" d="M 352 212 H 368"/>
+    <path class="flow-soft" d="M 352 250 H 368"/>
+    <rect class="card" x="368" y="158" width="124" height="32" rx="8"/>
+    <text class="h" x="430" y="179" text-anchor="middle">Python</text>
+    <rect class="card" x="368" y="196" width="124" height="32" rx="8"/>
+    <text class="h" x="430" y="217" text-anchor="middle">Terraform</text>
+    <rect class="card" x="368" y="234" width="124" height="32" rx="8"/>
+    <text class="h" x="430" y="255" text-anchor="middle">Policy</text>
+    <path class="join" d="M 492 174 H 508"/>
+    <path class="join" d="M 492 212 H 508"/>
+    <path class="join" d="M 492 250 H 508"/>
+    <path class="join" d="M 508 174 V 250"/>
+    <path class="flow-soft" d="M 508 196 H 524"/>
+    <rect class="card-strong" x="524" y="160" width="124" height="72" rx="10"/>
+    <text class="h" x="586" y="188" text-anchor="middle">Scan</text>
+    <text class="p" x="586" y="206" text-anchor="middle">
+      <tspan x="586" dy="0">Trivy</tspan>
+      <tspan x="586" dy="14">filesystem</tspan>
+    </text>
+    <path class="flow-soft" d="M 648 196 H 672"/>
+    <rect class="card-strong" x="672" y="160" width="96" height="72" rx="10"/>
+    <text class="h" x="720" y="188" text-anchor="middle">CI</text>
+    <text class="p" x="720" y="206" text-anchor="middle">
+      <tspan x="720" dy="0">merge</tspan>
+      <tspan x="720" dy="14">gate</tspan>
+    </text>
+    <path class="flow" d="M 768 196 H 796"/>
+    <rect class="card" x="796" y="152" width="176" height="88" rx="10"/>
+    <text class="ns" x="884" y="170" text-anchor="middle">RELEASE EVIDENCE</text>
+    <text class="h" x="884" y="190" text-anchor="middle">Trivy / Syft / Cosign</text>
+    <text class="p" x="884" y="208" text-anchor="middle">
+      <tspan x="884" dy="0">scan, SBOM,</tspan>
+      <tspan x="884" dy="14">sign and attest</tspan>
+    </text>
+    <path class="flow" d="M 972 196 H 1000"/>
+    <rect class="card" x="1000" y="160" width="168" height="72" rx="10"/>
+    <text class="h" x="1084" y="188" text-anchor="middle">Artifact Registry</text>
+    <text class="p" x="1084" y="206" text-anchor="middle">
+      <tspan x="1084" dy="0">immutable</tspan>
+      <tspan x="1084" dy="14">digests</tspan>
+    </text>
+    <path class="flow" d="M 1168 196 H 1196"/>
+    <rect class="card-strong" x="1196" y="152" width="256" height="88" rx="10"/>
+    <text class="ns" x="1324" y="170" text-anchor="middle">GKE / WORKLOAD IDENTITY</text>
+    <text class="h" x="1324" y="190" text-anchor="middle">vertex-agent-lab</text>
+    <text class="p" x="1324" y="208" text-anchor="middle">
+      <tspan x="1324" dy="0">Dataplane V2 NetworkPolicy</tspan>
+      <tspan x="1324" dy="14">enforced</tspan>
+    </text>
+    <rect class="card" x="64" y="280" width="136" height="44" rx="8"/>
+    <text class="p" x="132" y="297" text-anchor="middle">OIDC / WIF</text>
+    <text class="mono" x="132" y="313" text-anchor="middle">short-lived ID</text>
+    <rect class="card" x="216" y="280" width="408" height="44" rx="8"/>
+    <text class="p" x="420" y="297" text-anchor="middle">Policy job: OPA + Conftest</text>
+    <text class="mono" x="420" y="313" text-anchor="middle">governance + kubernetes-security.rego</text>
+    <rect class="card" x="640" y="280" width="248" height="44" rx="8"/>
+    <text class="p" x="764" y="297" text-anchor="middle">Scan job: Trivy SARIF</text>
+    <text class="mono" x="764" y="313" text-anchor="middle">HIGH / CRITICAL findings</text>
+    <rect class="card" x="904" y="280" width="548" height="44" rx="8"/>
+    <text class="p" x="1178" y="297" text-anchor="middle">Deploy uses digests, not tags</text>
+    <text class="mono" x="1178" y="313" text-anchor="middle">release-evidence/image-lock.json</text>
+  </g>
+<!--02 Detect-->
+  <g id="detect">
+    <rect class="panel" x="40" y="360" width="1640" height="188" rx="16"/>
+    <text class="num" x="64" y="386">02</text>
+    <text class="lane" x="96" y="386">DETECT</text>
+    <text class="lane-muted" x="176" y="386">namespace security + GCP telemetry into one ingest topic</text>
+    <rect class="card" x="64" y="408" width="136" height="64" rx="10"/>
+    <text class="h" x="132" y="434" text-anchor="middle">Falco</text>
+    <text class="p" x="132" y="452" text-anchor="middle">runtime events</text>
+    <rect class="card" x="216" y="408" width="136" height="64" rx="10"/>
+    <text class="h" x="284" y="434" text-anchor="middle">Trivy CronJob</text>
+    <text class="p" x="284" y="452" text-anchor="middle">image findings</text>
+    <rect class="card" x="368" y="408" width="136" height="64" rx="10"/>
+    <text class="h" x="436" y="434" text-anchor="middle">Prowler</text>
+    <text class="p" x="436" y="452" text-anchor="middle">cloud findings</text>
+    <rect class="card" x="520" y="408" width="136" height="64" rx="10"/>
+    <text class="h" x="588" y="434" text-anchor="middle">Cloud Logging</text>
+    <text class="p" x="588" y="452" text-anchor="middle">GKE workloads</text>
+    <rect class="card" x="672" y="408" width="136" height="64" rx="10"/>
+    <text class="h" x="740" y="434" text-anchor="middle">SCC</text>
+    <text class="p" x="740" y="452" text-anchor="middle">cloud findings</text>
+    <path class="bus" d="M 132 472 V 496"/>
+    <path class="bus" d="M 284 472 V 496"/>
+    <path class="bus" d="M 436 472 V 496"/>
+    <path class="bus" d="M 588 472 V 496"/>
+    <path class="bus" d="M 740 472 V 496"/>
+    <path class="bus" d="M 132 496 H 820"/>
+    <path class="flow" d="M 820 496 H 848"/>
+    <rect class="card-strong" x="848" y="476" width="220" height="40" rx="8"/>
+    <text class="mono" x="958" y="501" text-anchor="middle">raw-security-events</text>
+    <path class="flow" d="M 1068 496 H 1096"/>
+    <rect class="card" x="1096" y="440" width="240" height="108" rx="10"/>
+    <text class="ns" x="1216" y="462" text-anchor="middle">shared-services</text>
+    <text class="h" x="1216" y="482" text-anchor="middle">Event Aggregator</text>
+    <text class="p" x="1216" y="500" text-anchor="middle">
+      <tspan x="1216" dy="0">normalize, enrich,</tspan>
+      <tspan x="1216" dy="14">and publish</tspan>
+    </text>
+    <text class="mono" x="1216" y="532" text-anchor="middle">security-findings</text>
+    <path class="flow" d="M 1336 496 H 1368"/>
+    <rect class="card" x="1368" y="458" width="272" height="76" rx="10"/>
+    <text class="h" x="1504" y="484" text-anchor="middle">Dead-letter queue</text>
+    <text class="p" x="1504" y="502" text-anchor="middle">if ingest fails</text>
+    <text class="mono" x="1504" y="520" text-anchor="middle">raw-security-events-dlq</text>
+  </g>
+<!--03 Analyze-->
+  <g id="analyze">
+    <rect class="panel" x="40" y="568" width="1640" height="188" rx="16"/>
+    <text class="num" x="64" y="594">03</text>
+    <text class="lane" x="96" y="594">ANALYZE</text>
+    <text class="lane-muted" x="188" y="594">ai-agents namespace / Pub/Sub between hops / Vertex does not authorize</text>
+    <rect class="card" x="64" y="616" width="200" height="116" rx="10"/>
+    <text class="ns" x="164" y="638" text-anchor="middle">ai-agents</text>
+    <text class="h" x="164" y="660" text-anchor="middle">Observer Agent</text>
+    <text class="p" x="164" y="678" text-anchor="middle">
+      <tspan x="164" dy="0">watches incoming</tspan>
+      <tspan x="164" dy="14">findings</tspan>
+    </text>
+    <text class="mono" x="164" y="712" text-anchor="middle">observed-findings</text>
+    <path class="flow" d="M 264 674 H 292"/>
+    <rect class="card" x="292" y="616" width="200" height="116" rx="10"/>
+    <text class="ns" x="392" y="638" text-anchor="middle">ai-agents</text>
+    <text class="h" x="392" y="660" text-anchor="middle">Correlation Agent</text>
+    <text class="p" x="392" y="678" text-anchor="middle">
+      <tspan x="392" dy="0">joins weak signals</tspan>
+      <tspan x="392" dy="14">with Firestore state</tspan>
+    </text>
+    <text class="mono" x="392" y="712" text-anchor="middle">correlated-incidents</text>
+    <path class="flow" d="M 492 674 H 520"/>
+    <rect class="card-strong" x="520" y="616" width="220" height="116" rx="10"/>
+    <text class="ns" x="630" y="638" text-anchor="middle">ai-agents / Vertex AI</text>
+    <text class="h" x="630" y="660" text-anchor="middle">IR Analyst Agent</text>
+    <text class="p" x="630" y="678" text-anchor="middle">
+      <tspan x="630" dy="0">Gemini reasons and</tspan>
+      <tspan x="630" dy="14">recommends only</tspan>
+    </text>
+    <text class="mono" x="630" y="712" text-anchor="middle">analyzed-incidents</text>
+    <path class="flow" d="M 740 674 H 768"/>
+    <rect class="card" x="768" y="616" width="872" height="116" rx="10"/>
+    <text class="h" x="1204" y="644" text-anchor="middle">Separation of duty</text>
+    <text class="p" x="1204" y="666" text-anchor="middle">
+      <tspan x="1204" dy="0">Gemini may summarize and recommend. It never authorizes.</tspan>
+      <tspan x="1204" dy="16">Governance is deterministic OPA. Before any MCP call, the</tspan>
+      <tspan x="1204" dy="16">Remediation Agent re-validates the decision, policy SHA-256,</tspan>
+      <tspan x="1204" dy="16">allowlists, and signatures.</tspan>
+    </text>
+  </g>
+<!--04 Govern-->
+  <g id="govern">
+    <rect class="panel" x="40" y="776" width="1640" height="248" rx="16"/>
+    <text class="num" x="64" y="802">04</text>
+    <text class="lane" x="96" y="802">GOVERN</text>
+    <text class="lane-muted" x="180" y="802">ai-governance / policy/governance/remediation.rego / fail-closed</text>
+    <rect class="card-strong" x="64" y="824" width="250" height="168" rx="10"/>
+    <text class="ns" x="189" y="848" text-anchor="middle">ai-governance</text>
+    <text class="h" x="189" y="870" text-anchor="middle">Governance Agent</text>
+    <text class="p" x="189" y="888" text-anchor="middle">
+      <tspan x="189" dy="0">OPA sidecar evaluates</tspan>
+      <tspan x="189" dy="14">the normalized incident</tspan>
+    </text>
+    <text class="mono-purple" x="189" y="926" text-anchor="middle">
+      <tspan x="189" dy="0">PERMIT</tspan>
+      <tspan x="189" dy="14">REQUIRE_APPROVAL</tspan>
+      <tspan x="189" dy="14">DENY / NO_ACTION</tspan>
+    </text>
+    <path class="join-gov" d="M 314 860 H 332 V 844"/>
+    <path class="flow-gov" d="M 332 844 H 356"/>
+    <path class="flow-gov" d="M 314 908 H 356"/>
+    <path class="join-gov" d="M 314 956 H 332 V 972"/>
+    <path class="flow-gov" d="M 332 972 H 356"/>
+    <rect class="card" x="356" y="820" width="200" height="48" rx="10"/>
+    <text class="h" x="456" y="838" text-anchor="middle">REQUIRE APPROVAL</text>
+    <text class="mono-amber" x="456" y="854" text-anchor="middle">approval-requests</text>
+    <rect class="card" x="356" y="884" width="200" height="48" rx="10"/>
+    <text class="h" x="456" y="902" text-anchor="middle">PERMIT</text>
+    <text class="mono" x="456" y="918" text-anchor="middle">governance-decisions</text>
+    <rect class="card" x="356" y="948" width="200" height="48" rx="10"/>
+    <text class="h" x="456" y="966" text-anchor="middle">DENY / NO_ACTION</text>
+    <text class="mono-purple" x="456" y="982" text-anchor="middle">governance-audit</text>
+    <path class="flow-human" d="M 556 844 H 588"/>
+    <rect class="card" x="588" y="816" width="196" height="56" rx="10"/>
+    <text class="h" x="686" y="836" text-anchor="middle">Human reviewer</text>
+    <text class="p" x="686" y="852" text-anchor="middle">
+      <tspan x="686" dy="0">critical needs a signed</tspan>
+      <tspan x="686" dy="12">approval from review-sub</tspan>
+    </text>
+    <path class="flow-human" d="M 784 844 H 816"/>
+    <rect class="card" x="816" y="816" width="176" height="56" rx="10"/>
+    <text class="h" x="904" y="836" text-anchor="middle">Cloud KMS</text>
+    <text class="p" x="904" y="852" text-anchor="middle">
+      <tspan x="904" dy="0">sign the approval</tspan>
+      <tspan x="904" dy="12">payload</tspan>
+    </text>
+    <path class="flow-human" d="M 992 844 H 1024"/>
+    <rect class="card-strong" x="1024" y="816" width="616" height="56" rx="10"/>
+    <text class="ns" x="1332" y="834" text-anchor="middle">ai-governance</text>
+    <text class="h" x="1332" y="850" text-anchor="middle">Approval Agent</text>
+    <text class="mono-amber" x="1332" y="864" text-anchor="middle">approval-decisions to governance-decisions</text>
+    <rect class="card" x="588" y="888" width="1052" height="108" rx="10"/>
+    <text class="h" x="1114" y="912" text-anchor="middle">Independent re-check before execution</text>
+    <text class="p" x="1114" y="934" text-anchor="middle">
+      <tspan x="1114" dy="0">Remediation Agent verifies the decision, policy id, policy SHA-256,</tspan>
+      <tspan x="1114" dy="16">approval signature, expiry, namespace and deployment allowlists,</tspan>
+      <tspan x="1114" dy="16">severity, confidence, evidence count, and prior Firestore execution</tspan>
+      <tspan x="1114" dy="16">state. Missing or stale data is rejected.</tspan>
+    </text>
+  </g>
+<!--05 Execute-->
+  <g id="execute">
+    <rect class="panel" x="40" y="1044" width="1640" height="148" rx="16"/>
+    <text class="num" x="64" y="1070">05</text>
+    <text class="lane" x="96" y="1070">EXECUTE</text>
+    <text class="lane-muted" x="188" y="1070">MCP is the only path to Kubernetes / mTLS / EXECUTION_MODE=controlled</text>
+    <rect class="card-strong" x="64" y="1092" width="220" height="80" rx="10"/>
+    <text class="ns" x="174" y="1112" text-anchor="middle">ai-agents</text>
+    <text class="h" x="174" y="1132" text-anchor="middle">Remediation Agent</text>
+    <text class="mono" x="174" y="1150" text-anchor="middle">governance-decisions in</text>
+    <path class="flow" d="M 284 1132 H 312"/>
+    <rect class="card" x="312" y="1092" width="236" height="80" rx="10"/>
+    <text class="ns" x="430" y="1112" text-anchor="middle">mcp-gateway</text>
+    <text class="h" x="430" y="1130" text-anchor="middle">MCP Gateway</text>
+    <text class="p" x="430" y="1146" text-anchor="middle">
+      <tspan x="430" dy="0">nginx, client mTLS,</tspan>
+      <tspan x="430" dy="12">no service-account token</tspan>
+    </text>
+    <path class="flow" d="M 548 1132 H 576"/>
+    <rect class="card" x="576" y="1092" width="220" height="80" rx="10"/>
+    <text class="ns" x="686" y="1112" text-anchor="middle">mcp</text>
+    <text class="h" x="686" y="1130" text-anchor="middle">MCP Server</text>
+    <text class="p" x="686" y="1146" text-anchor="middle">
+      <tspan x="686" dy="0">approved tools and</tspan>
+      <tspan x="686" dy="12">audit events</tspan>
+    </text>
+    <path class="flow" d="M 796 1132 H 824"/>
+    <rect class="card-strong" x="824" y="1092" width="260" height="80" rx="10"/>
+    <text class="ns" x="954" y="1112" text-anchor="middle">app01</text>
+    <text class="h" x="954" y="1130" text-anchor="middle">Controlled K8s action</text>
+    <text class="p" x="954" y="1146" text-anchor="middle">
+      <tspan x="954" dy="0">broken-app / postgres</tspan>
+      <tspan x="954" dy="12">restart or inspect</tspan>
+    </text>
+    <path class="flow" d="M 1084 1132 H 1112"/>
+    <rect class="card" x="1112" y="1092" width="528" height="80" rx="10"/>
+    <text class="h" x="1376" y="1114" text-anchor="middle">Reporting Agent</text>
+    <text class="p" x="1376" y="1132" text-anchor="middle">Slack / Jira via Secret Manager</text>
+    <text class="mono" x="1376" y="1150" text-anchor="middle">remediation-results to incident-reports</text>
+  </g>
+<!--06 Evidence + guardrails-->
+  <g id="evidence">
+    <rect class="panel" x="40" y="1212" width="1640" height="88" rx="16"/>
+    <text class="num" x="64" y="1236">06</text>
+    <text class="lane" x="96" y="1236">EVIDENCE AND GUARDRAILS</text>
+    <text class="lane-muted" x="308" y="1236">nothing executes without a record</text>
+    <rect class="card" x="64" y="1250" width="168" height="36" rx="8"/>
+    <text class="h" x="148" y="1273" text-anchor="middle">BigQuery evidence</text>
+    <rect class="card" x="244" y="1250" width="140" height="36" rx="8"/>
+    <text class="h" x="314" y="1273" text-anchor="middle">Cloud Logging</text>
+    <rect class="card" x="396" y="1250" width="168" height="36" rx="8"/>
+    <text class="h" x="480" y="1273" text-anchor="middle">Managed Prometheus</text>
+    <rect class="card" x="576" y="1250" width="128" height="36" rx="8"/>
+    <text class="h" x="640" y="1273" text-anchor="middle">Firestore state</text>
+    <rect class="card" x="720" y="1250" width="120" height="36" rx="8"/>
+    <text class="p" x="780" y="1273" text-anchor="middle">NetworkPolicy</text>
+    <rect class="card" x="852" y="1250" width="72" height="36" rx="8"/>
+    <text class="p" x="888" y="1273" text-anchor="middle">RBAC</text>
+    <rect class="card" x="936" y="1250" width="140" height="36" rx="8"/>
+    <text class="p" x="1006" y="1273" text-anchor="middle">Workload Identity</text>
+    <rect class="card" x="1088" y="1250" width="56" height="36" rx="8"/>
+    <text class="p" x="1116" y="1273" text-anchor="middle">HPA</text>
+    <rect class="card" x="1156" y="1250" width="56" height="36" rx="8"/>
+    <text class="p" x="1184" y="1273" text-anchor="middle">PDB</text>
+    <rect class="card" x="1224" y="1250" width="416" height="36" rx="8"/>
+    <text class="p" x="1432" y="1273" text-anchor="middle">Policy Controller / Gatekeeper</text>
+  </g>
+</svg>

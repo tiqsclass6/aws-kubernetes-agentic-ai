@@ -1,58 +1,75 @@
-# Pod Architecture
+# **Pod Architecture**
 
+Workloads that actually run in the live lab. Falco is installed by Helm into its own namespace. Scanners live in `security`. Analysis and execution agents share `ai-agents` but NetworkPolicies keep remediation on a tighter path.
+
+```text
 ┌──────────────────────────────────────────────┐
-│                 GKE Cluster                  │
+│         GKE cluster vertex-agent-lab         │
+│         zone us-central1-c / e2-standard-4   │
 └──────────────────────────────────────────────┘
 
    ┌──────────────────────────────────────┐
-   │ kube-system namespace                │
+   │ kube-system                          │
    │--------------------------------------│
-   │ CoreDNS                              │
+   │ kube-dns                             │
+   │ node-local-dns (169.254.20.10)       │
    │ metrics-server                       │
-   │ ingress controller                   │
    └──────────────────────────────────────┘
 
    ┌──────────────────────────────────────┐
-   │ security namespace                   │
+   │ falco                                │
    │--------------------------------------│
-   │ Falco DaemonSet                      │
-   │ Trivy Jobs                           │
-   │ Prowler CronJobs                     │
-   │ Kyverno / OPA                        │
-   │ Event Aggregator                     │
+   │ Falco DaemonSet (Helm 9.1.0)         │
    └──────────────────────────────────────┘
 
    ┌──────────────────────────────────────┐
-   │ monitoring namespace                 │
+   │ security                             │
    │--------------------------------------│
-   │ Datadog Agents                       │
-   │ Prometheus                           │
-   │ Grafana                              │
-   │ Loki (optional)                      │
+   │ Trivy CronJob + publisher            │
+   │ Prowler CronJob + publisher          │
    └──────────────────────────────────────┘
 
    ┌──────────────────────────────────────┐
-   │ ai-agents namespace                  │
+   │ shared-services                      │
+   │--------------------------------------│
+   │ Event Aggregator Deployment          │
+   └──────────────────────────────────────┘
+
+   ┌──────────────────────────────────────┐
+   │ ai-agents                            │
    │--------------------------------------│
    │ Observer Agent                       │
    │ Correlation Agent                    │
    │ IR Analyst Agent                     │
+   │ Remediation Agent (mTLS client)      │
    │ Reporting Agent                      │
-   │ Redis Memory                         │
    └──────────────────────────────────────┘
 
    ┌──────────────────────────────────────┐
-   │ mcp namespace                        │
+   │ ai-governance                        │
+   │--------------------------------------│
+   │ Governance Agent + OPA sidecar       │
+   │ Approval Agent                       │
+   └──────────────────────────────────────┘
+
+   ┌──────────────────────────────────────┐
+   │ mcp-gateway                          │
+   │--------------------------------------│
+   │ nginx mTLS gateway                   │
+   └──────────────────────────────────────┘
+
+   ┌──────────────────────────────────────┐
+   │ mcp                                  │
    │--------------------------------------│
    │ MCP Server                           │
-   │ Tool Gateway                         │
-   │ Approval Service                     │
    └──────────────────────────────────────┘
 
    ┌──────────────────────────────────────┐
-   │ workloads namespace                  │
+   │ app01                                │
    │--------------------------------------│
-   │ Demo Apps                            │
-   │ Vulnerable Apps                      │
-   │ Attack Simulations                   │
+   │ broken-app (app:v1)                  │
+   │ PostgreSQL                           │
    └──────────────────────────────────────┘
+```
+
+Reliability objects: HPAs and PDBs under `manifests/reliability/`. Metrics: PodMonitoring under `manifests/observability/`.

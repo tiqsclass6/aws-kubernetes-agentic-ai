@@ -21,7 +21,7 @@ class MetricsResponse:
 
 
 class ServiceMetrics:
-    """Per-process Prometheus registry for a Phase 4 service."""
+    """Per-process Prometheus registry for a service."""
 
     def __init__(self, service_name: str) -> None:
         self.service_name = service_name

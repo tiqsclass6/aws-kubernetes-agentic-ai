@@ -1,7 +1,7 @@
-# Enterprise Security Layers for an MCP Server
+# **Enterprise Security Layers for an MCP Server**
 
-Security Layer 1 — mTLS Gateway
-Purpose
+## **Security Layer 1 — mTLS Gateway**
+**Purpose**
 
 The mTLS Gateway verifies the identity of every AI client before it is allowed to communicate with the MCP Server.
 
@@ -9,7 +9,7 @@ Unlike traditional TLS, where only the server presents a certificate, mTLS requi
 
 This provides strong mutual authentication.
 
-Why We Need It
+**Why We Need It**
 
 Without mTLS:
 
@@ -22,7 +22,7 @@ With mTLS:
     with valid client certificates
     can communicate with the MCP Server.
 
-Responsibilities
+**Responsibilities**
 
     Client certificate validation
     Server certificate validation
@@ -33,9 +33,9 @@ Responsibilities
 
 Think of the mTLS Gateway as the front door of the AI platform.
 
-## Security Layer 2 — OPA / Gatekeeper
+## **Security Layer 2 — OPA / Gatekeeper**
 
-Purpose
+**Purpose**
 
 Once an AI agent has been authenticated, the next question becomes:
 
@@ -45,7 +45,7 @@ OPA answers that question.
 
 It evaluates organizational policy before allowing tool execution.
 
-Example Policies
+**Example Policies**
 
 Examples include:
 
@@ -54,7 +54,7 @@ Examples include:
     AI agents may only retrieve logs, not modify workloads.
     Certain tools require human approval.
 
-Responsibilities
+**Responsibilities**
 
     Policy evaluation
     Authorization
@@ -64,15 +64,15 @@ Responsibilities
 
 Think of OPA as the security policy engine.
 
-## Security Layer 3 — Kubernetes RBAC
+## **Security Layer 3 — Kubernetes RBAC**
 
-Purpose
+**Purpose**
 
 Even if OPA approves a request, Kubernetes itself should still enforce permissions.
 
 RBAC ensures every service account has only the permissions required to perform its tasks.
 
-Example
+**Example**
 
     Observer Agent
     ↓
@@ -82,7 +82,7 @@ Example
 
 This follows the Principle of Least Privilege.
 
-Responsibilities
+**Responsibilities**
 
     Namespace isolation
     Least privilege
@@ -91,9 +91,9 @@ Responsibilities
 
 Think of RBAC as the last line of authorization inside Kubernetes.
 
-## Security Layer 4 — Audit Logging
+## **Security Layer 4 — Audit Logging**
 
-Purpose
+**Purpose**
 
 Every important action should leave evidence.
 
@@ -105,7 +105,7 @@ If an AI agent invokes a tool, administrators should know:
     Whether it succeeded
     Which resources were affected
 
-Responsibilities
+**Responsibilities**
 
     Compliance evidence
     Forensic investigations
@@ -115,9 +115,9 @@ Responsibilities
 
 Without audit logs, organizations cannot explain what happened after an incident.
 
-## Security Layer 5 — Certificate Monitoring
+## **Security Layer 5 — Certificate Monitoring**
 
-Purpose
+**Purpose**
 
     Certificates expire.
     Certificates become compromised.
@@ -125,7 +125,7 @@ Purpose
 
 The platform should continuously monitor certificate health. Our Cert Guardian Agent performs this responsibility.
 
-Example Checks
+**Example Checks**
 
     Expiration dates
     Certificate chain validation
@@ -135,9 +135,9 @@ Example Checks
 
 Think of this as preventive maintenance for trust.
 
-## Security Layer 6 — AI Guardian Agent
+## **Security Layer 6 — AI Guardian Agent**
 
-Purpose
+**Purpose**
 
 Traditional monitoring tools observe infrastructure. The AI Guardian Agent observes AI behavior.
 
@@ -151,7 +151,7 @@ It watches for:
 
 This provides operational oversight of AI systems themselves.
 
-Example
+**Example**
 
     AI Agent
     
@@ -169,9 +169,9 @@ Example
 
 This is essentially runtime governance for AI.
 
-## Security Layer 7 — Gateway Telemetry Agent
+## **Security Layer 7 — Gateway Telemetry Agent**
 
-Purpose
+**Purpose**
 
 The Gateway Telemetry Agent focuses on operational health rather than security policy.
 
@@ -188,13 +188,13 @@ It monitors:
 
 These metrics help determine whether the gateway is functioning correctly.
 
-Why This Matters
+**Why This Matters**
 
 A secure gateway that is constantly failing is still a production problem.
 
 Operations teams need visibility into gateway health.
 
-## Putting It All Together
+## **Putting It All Together**
 
                     AI Agent
                         |
@@ -226,14 +226,14 @@ Operations teams need visibility into gateway health.
     
     ------------------------------------------------
 
-Running Alongside Everything
+**Running Alongside Everything**
 
     • Audit Logging
     • Certificate Monitoring
     • AI Guardian Agent
     • Gateway Telemetry Agent
 
-## The Enterprise Philosophy
+## **The Enterprise Philosophy**
 
 One of the biggest lessons I would leave your students with is this:
 

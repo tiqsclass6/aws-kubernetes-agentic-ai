@@ -19,7 +19,7 @@ data:
   FIRESTORE_DATABASE: "(default)"
   APPROVAL_COLLECTION: approval_requests
   GOVERNANCE_AUDIT_TOPIC: governance-audit
-  KMS_KEY_VERSION: projects/class-6-5-tiqs/locations/us-central1/keyRings/agentic-governance/cryptoKeys/approval-signing/cryptoKeyVersions/1
+  KMS_KEY_VERSION: projects/class-6-5-tiqs/locations/us-central1/keyRings/agentic-governance/cryptoKeys/approval-signing/cryptoKeyVersions/2
   MAX_CLOCK_SKEW_SECONDS: "120"
   PERMIT_TTL_SECONDS: "600"
   MAX_CONCURRENT_MESSAGES: "2"
@@ -58,7 +58,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: approval-agent
-          image: us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/approval-agent:phase5-v1
+          image: us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/approval-agent:v1
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
