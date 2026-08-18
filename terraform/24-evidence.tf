@@ -22,7 +22,7 @@ resource "google_bigquery_dataset" "governance_evidence" {
 
   labels = {
     environment = "lab"
-    purpose = "governance-evidence"
+    purpose     = "governance-evidence"
   }
 
   # Create-time ACL must be only an org-permitted identity. Default projectOwners
