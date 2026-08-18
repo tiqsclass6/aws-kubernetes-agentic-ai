@@ -22,9 +22,43 @@ env:
   TRIVY_VERSION: "0.70.0"
 
 jobs:
-  validate:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install YAML parser
+        run: python -m pip install "PyYAML==6.0.3"
+
+      - name: Parse Kubernetes YAML
+        run: |
+          python - <<'PY_YAML'
+          from pathlib import Path
+          import yaml
+
+          for path in sorted(Path("manifests").rglob("*.yaml")):
+              with path.open(encoding="utf-8") as handle:
+                  list(yaml.safe_load_all(handle))
+              print(f"validated {path}")
+          PY_YAML
+
+      - name: Check shell-script syntax
+        run: find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+
+  python:
+    name: Python
+    needs: [lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
@@ -66,19 +100,15 @@ jobs:
           python -m compileall -q python
           pytest -q python/tests
 
-      - name: Validate YAML and shell
-        run: |
-          python - <<'PY_YAML'
-          from pathlib import Path
-          import yaml
+  terraform:
+    name: Terraform
+    needs: [lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
 
-          for path in sorted(Path("manifests").rglob("*.yaml")):
-              with path.open(encoding="utf-8") as handle:
-                  list(yaml.safe_load_all(handle))
-              print(f"validated {path}")
-          PY_YAML
-
-          find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
@@ -90,6 +120,16 @@ jobs:
           terraform -chdir=terraform fmt -check -recursive
           terraform -chdir=terraform init -backend=false
           terraform -chdir=terraform validate
+
+  policy:
+    name: Policy
+    needs: [lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
 
       - name: Install OPA and Conftest
         run: |
@@ -104,21 +144,21 @@ jobs:
           tar -xzf /tmp/conftest.tar.gz -C /tmp conftest
           sudo install -m 0755 /tmp/conftest /usr/local/bin/conftest
 
-      - name: Test governance and Kubernetes policy
-        run: |
-          opa test policy/governance -v
-          conftest test \
-            manifests/event-aggregator.yaml \
-            manifests/observer-agent.yaml \
-            manifests/correlation-agent.yaml \
-            manifests/ir-analyst-agent.yaml \
-            manifests/governance-agent.yaml \
-            manifests/approval-agent.yaml \
-            manifests/remediation-agent.yaml \
-            manifests/reporting-agent.yaml \
-            manifests/mcp-deployment.yaml \
-            --policy policy/conftest \
-            --all-namespaces
+      - name: Test governance policy
+        run: opa test policy/governance -v
+
+      - name: Evaluate Kubernetes policy
+        run: bash scripts/conftest-test.sh
+
+  scan:
+    name: Scan
+    needs: [python, terraform, policy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
 
       - name: Install Trivy
         run: |
@@ -168,3 +208,21 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
+
+  ci:
+    name: CI
+    if: ${{ !cancelled() }}
+    needs: [python, terraform, policy, scan]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Require every pipeline section
+        env:
+          PYTHON_RESULT: ${{ needs.python.result }}
+          TERRAFORM_RESULT: ${{ needs.terraform.result }}
+          POLICY_RESULT: ${{ needs.policy.result }}
+          SCAN_RESULT: ${{ needs.scan.result }}
+        run: |
+          echo "python=${PYTHON_RESULT} terraform=${TERRAFORM_RESULT} policy=${POLICY_RESULT} scan=${SCAN_RESULT}"
+          [[ "${PYTHON_RESULT}" == success && "${TERRAFORM_RESULT}" == success && "${POLICY_RESULT}" == success && "${SCAN_RESULT}" == success ]]

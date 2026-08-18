@@ -186,8 +186,9 @@ resource "google_monitoring_dashboard" "security_pipeline" {
                 }
               }]
               thresholds = [{
-                value     = var.pipeline_oldest_message_threshold_seconds
-                direction = "ABOVE"
+                label      = "Oldest unacknowledged message threshold"
+                value      = var.pipeline_oldest_message_threshold_seconds
+                targetAxis = "Y1"
               }]
               yAxis = {
                 label = "seconds"

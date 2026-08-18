@@ -19,13 +19,29 @@ is_platform_image(image) if startswith(image, "registry.k8s.io/")
 
 is_opa_image(image) if startswith(image, "openpolicyagent/opa:")
 
+# Exact tags only — not repository prefixes.
+vendor_images := {
+  "nginx:1.27.4-alpine",          # manifests/mcp-gateway-deployment.yaml
+  "postgres:16-alpine",           # manifests/postgres.yaml
+  "aquasec/trivy:0.71.1",         # manifests/trivy-cronjob.yaml
+  "prowlercloud/prowler:5.35.0",  # manifests/prowler-cronjob.yaml
+}
+
 approved_image(image) if is_project_image(image)
 approved_image(image) if is_platform_image(image)
 approved_image(image) if is_opa_image(image)
+approved_image(image) if image in vendor_images
+
+# Official postgres image must start as root. See manifests/postgres.yaml.
+is_permitted_to_run_as_root if {
+  input.kind == "Deployment"
+  input.metadata.name == "postgres"
+}
 
 deny contains msg if {
   input.kind in workload_kinds
   not object.get(object.get(pod_spec, "securityContext", {}), "runAsNonRoot", false)
+  not is_permitted_to_run_as_root
   msg := sprintf("%s/%s must set pod securityContext.runAsNonRoot=true", [input.kind, input.metadata.name])
 }
 

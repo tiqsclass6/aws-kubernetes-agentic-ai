@@ -58,8 +58,7 @@ resource "google_container_cluster" "primary" {
     workload_pool = local.workload_pool
   }
 
-  # Required for the networking.k8s.io/v1 NetworkPolicy objects in
-  # manifests/network-policies to be enforced instead of existing as no-op YAML.
+  # Required for the networking.k8s.io/v1 NetworkPolicy objects in manifests/network-policies to be enforced instead of existing as no-op YAML.
   network_policy {
     enabled  = true
     provider = "CALICO"
@@ -79,8 +78,12 @@ resource "google_container_cluster" "primary" {
     }
   }
 
-  logging_service    = "logging.googleapis.com/kubernetes"
-  monitoring_service = "monitoring.googleapis.com/kubernetes"
+  logging_config {
+    enable_components = [
+      "SYSTEM_COMPONENTS",
+      "WORKLOADS",
+    ]
+  }
 
   monitoring_config {
     enable_components = [
