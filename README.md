@@ -814,15 +814,15 @@ store the secret values.
 The repository uses:
 
 ```yaml
-actions/checkout@v4
-actions/setup-python@v5
-hashicorp/setup-terraform@v3
-github/codeql-action/upload-sarif@v3
-google-github-actions/auth@v2
-google-github-actions/setup-gcloud@v2
-docker/setup-buildx-action@v3
-sigstore/cosign-installer@v3.10.1
-actions/upload-artifact@v4
+actions/checkout@v5
+actions/setup-python@v6
+hashicorp/setup-terraform@v4
+github/codeql-action/upload-sarif@v4
+actions/upload-artifact@v7
+google-github-actions/auth@v3
+google-github-actions/setup-gcloud@v3
+docker/setup-buildx-action@v4
+sigstore/cosign-installer@v4.1.2
 ```
 
 If VS Code reports that every action is unresolved, the problem is normally the local GitHub Actions extension, authentication, API rate limit, proxy, VPN, DNS, TLS inspection, or access to `api.github.com`. Repeatedly changing valid action versions does not repair a resolver that cannot access GitHub.
