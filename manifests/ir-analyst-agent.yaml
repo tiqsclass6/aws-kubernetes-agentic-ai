@@ -63,7 +63,7 @@ spec:
         - name: ir-analyst-agent
 
           image: >-
-            us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/ir-analyst-agent:phase5-v1
+            us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/ir-analyst-agent:v1
 
           imagePullPolicy: IfNotPresent
 

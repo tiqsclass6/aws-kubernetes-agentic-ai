@@ -16,8 +16,7 @@ destroy.tfplan
 
 # Local validation traces
 *.trace
-phase5-validate.trace
-phase5-validation-trace.log
+*validation-trace.log
 
 *.tfvars
 *.tfvars.json
@@ -43,4 +42,3 @@ __pycache__/
 # Service account key files, if used instead of Application Default Credentials
 *.json
 !package.json
-terraform/terraform.tfvars

@@ -1,6 +1,6 @@
-# API Gateway vs MCP Server
+# **API Gateway vs MCP Server**
 
-Traditional API Gateway
+## **Traditional API Gateway**
 
 A traditional API Gateway sits between clients and backend services.
 
@@ -27,7 +27,7 @@ A traditional API Gateway sits between clients and backend services.
 
 The gateway's primary responsibility is to expose APIs securely.
 
-MCP Server
+## **MCP Server**
 
 The MCP Server is similar, but instead of exposing REST APIs, it exposes tools that AI models can use.
 
@@ -57,7 +57,7 @@ The MCP Server is similar, but instead of exposing REST APIs, it exposes tools t
 
 The MCP Server's primary responsibility is to expose tools securely.
 
-API Gateway vs MCP
+## **API Gateway vs MCP**
 
 | API Gateway       | MCP Server           |
 | ----------------- | -------------------- |
@@ -74,9 +74,9 @@ The architecture is remarkably similar.
 
 The payloads are different.
 
-Kong API Gateway
+## **Kong API Gateway**
 
-Traditional
+### **Traditional**
 
     Client
     ↓
@@ -84,7 +84,7 @@ Traditional
     ↓
     Microservices
 
-versus AI
+### **versus AI**
 
     Claude
     ↓
@@ -104,7 +104,7 @@ One routes HTTP requests.
 
 The other routes AI tool requests.
 
-Possible Kong Usage
+## **Possible Kong Usage**
 
     Claude
     ↓
@@ -118,11 +118,19 @@ Possible Kong Usage
     ↓
     Kubernetes
 
-Now Kong becomes the edge gateway, while MCP manages the AI protocol and tool registry.
+Kong can sit at the internet edge. This lab does not deploy Kong. The live path is:
 
-That's a clean separation of responsibilities.
+    Remediation Agent
+    ↓
+    nginx mTLS gateway (mcp-gateway)
+    ↓
+    MCP Server (mcp)
+    ↓
+    Kubernetes API in app01
 
-Future Architecture
+OPA runs in the Governance Agent before remediation is allowed to call MCP. Kubernetes RBAC on `mcp-server-sa` is a final allowlist for `app01`.
+
+## **Future Architecture**
 
     Internet
           |

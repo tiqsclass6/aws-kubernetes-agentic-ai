@@ -22,7 +22,7 @@ EXECUTION_COLLECTION = os.environ.get(
     "remediation_executions",
 )
 EXECUTION_MODE = os.environ.get("EXECUTION_MODE", "disabled").strip().lower()
-EXPECTED_POLICY_ID = os.environ.get("EXPECTED_POLICY_ID", "phase5-remediation")
+EXPECTED_POLICY_ID = os.environ.get("EXPECTED_POLICY_ID", "remediation")
 POLICY_FILE = os.environ.get("POLICY_FILE", "/policies/remediation.rego")
 EXECUTION_LEASE_SECONDS = int(os.environ.get("EXECUTION_LEASE_SECONDS", "180"))
 EXECUTION_TTL_DAYS = int(os.environ.get("EXECUTION_TTL_DAYS", "30"))
@@ -67,7 +67,7 @@ LOCAL_POLICY_SHA256 = local_policy_sha256()
 
 
 http = requests.Session()
-http.headers.update({"User-Agent": "agentic-remediation-agent/phase5"})
+http.headers.update({"User-Agent": "agentic-remediation-agent/1.0"})
 firestore_client = firestore.Client(project=PROJECT_ID, database=FIRESTORE_DATABASE)
 
 

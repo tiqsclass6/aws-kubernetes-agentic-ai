@@ -1,34 +1,39 @@
-# Namespace Architecture
+# **Namespace Architecture**
 
+Seven application namespaces plus Helm `falco`. There is no `monitoring`, `ingress`, `incident-response`, or `workloads` namespace in this lab.
+
+```text
       ┌─────────────────────────────────────────────┐
-      │                 GKE Cluster                 │
+      │         GKE cluster vertex-agent-lab        │
+      │         Dataplane V2 NetworkPolicy          │
       └─────────────────────────────────────────────┘
 
          ┌─────────────────────────────┐
          │ app01                       │
          │-----------------------------│
-         │ vulnerable apps             │
-         │ demo APIs                   │
-         │ attack simulations          │
+         │ broken-app (app:v1)         │
+         │ PostgreSQL                  │
+         │ only remediation target     │
          └─────────────────────────────┘
 
          ┌─────────────────────────────┐
          │ security                    │
          │-----------------------------│
-         │ Falco                       │
-         │ Trivy Jobs                  │
-         │ Prowler                     │
-         │ Kyverno / OPA               │
-         │ event aggregation           │
+         │ Trivy CronJob               │
+         │ Prowler CronJob             │
+         │ scanner publisher sidecars  │
          └─────────────────────────────┘
 
          ┌─────────────────────────────┐
-         │ monitoring                  │
+         │ falco (Helm release)        │
          │-----------------------------│
-         │ Datadog                     │
-         │ Prometheus                  │
-         │ Grafana                     │
-         │ Loki                        │
+         │ Falco DaemonSet             │
+         └─────────────────────────────┘
+
+         ┌─────────────────────────────┐
+         │ shared-services             │
+         │-----------------------------│
+         │ Event Aggregator            │
          └─────────────────────────────┘
 
          ┌─────────────────────────────┐
@@ -36,38 +41,32 @@
          │-----------------------------│
          │ Observer Agent              │
          │ Correlation Agent           │
-         │ Analyst Agent               │
+         │ IR Analyst Agent            │
+         │ Remediation Agent           │
          │ Reporting Agent             │
-         │ Redis Memory                │
+         └─────────────────────────────┘
+
+         ┌─────────────────────────────┐
+         │ ai-governance               │
+         │-----------------------------│
+         │ Governance Agent + OPA      │
+         │ Approval Agent              │
+         └─────────────────────────────┘
+
+         ┌─────────────────────────────┐
+         │ mcp-gateway                 │
+         │-----------------------------│
+         │ nginx mTLS gateway          │
+         │ automountServiceAccount     │
+         │ Token: false                │
          └─────────────────────────────┘
 
          ┌─────────────────────────────┐
          │ mcp                         │
          │-----------------------------│
          │ MCP Server                  │
-         │ Tool Gateway                │
-         │ Approval Service            │
+         │ app01-scoped RBAC           │
          └─────────────────────────────┘
+```
 
-         ┌─────────────────────────────┐
-         │ incident-response           │
-         │-----------------------------│
-         │ evidence collector          │
-         │ IR timeline generator       │
-         │ markdown report builder     │
-         └─────────────────────────────┘
-
-         ┌─────────────────────────────┐
-         │ shared-services             │
-         │-----------------------------│
-         │ Redis                       │
-         │ Pub/Sub bridge              │
-         │ internal APIs               │
-         └─────────────────────────────┘
-
-         ┌─────────────────────────────┐
-         │ ingress                     │
-         │-----------------------------│
-         │ NGINX ingress               │
-         │ gateway APIs                │
-         └─────────────────────────────┘
+NetworkPolicies allow kube-dns and node-local-dns in `kube-system`, the kube-dns ClusterIP `10.112.0.10/32`, and NodeLocal DNSCache `169.254.20.10/32`. Workload Identity uses `169.254.169.254` on Dataplane V2.

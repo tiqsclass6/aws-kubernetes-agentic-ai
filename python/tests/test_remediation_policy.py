@@ -26,7 +26,7 @@ def governance_event(*, source: str = "dgc-opa", approval_required: bool = False
             "decision_source": source,
             "decision": "PERMIT",
             "policy": {
-                "policy_id": "phase5-remediation",
+                "policy_id": "remediation",
                 "policy_version": "1.0.0",
                 "policy_sha256": remediation_agent.LOCAL_POLICY_SHA256,
                 "opa_path": "data.agentic.governance.decision",

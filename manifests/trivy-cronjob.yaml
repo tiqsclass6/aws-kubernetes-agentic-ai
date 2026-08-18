@@ -43,7 +43,7 @@ spec:
             - name: artifact-registry-token
 
               image: >-
-                us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:phase2-v1
+                us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:v1
 
               imagePullPolicy: IfNotPresent
 
@@ -132,10 +132,10 @@ spec:
 
                 - name: TARGET_IMAGES
                   value: >-
-                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/vertex-agent:phase1-v1
-                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/mcp-server:phase1-v1
-                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/event-aggregator:phase2-v1
-                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:phase2-v1
+                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/app:v1
+                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/mcp-server:v1
+                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/event-aggregator:v1
+                    us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:v1
 
               resources:
                 requests:
@@ -171,7 +171,7 @@ spec:
             - name: findings-publisher
 
               image: >-
-                us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:phase2-v1
+                us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:v1
 
               imagePullPolicy: IfNotPresent
 

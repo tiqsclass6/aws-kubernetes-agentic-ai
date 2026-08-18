@@ -1,0 +1,21 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: governance-metrics
+  namespace: ai-governance
+  labels:
+    app.kubernetes.io/part-of: agentic-security
+    app.kubernetes.io/component: observability
+spec:
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - governance-agent
+          - approval-agent
+  endpoints:
+    - port: health
+      path: /metrics
+      interval: 30s
+      timeout: 10s

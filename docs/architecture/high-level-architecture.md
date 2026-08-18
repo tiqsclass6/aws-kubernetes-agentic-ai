@@ -1,25 +1,31 @@
-# High Level Architecture
+# **High Level Architecture**
 
+Live lab stack. GitHub Actions and Workload Identity Federation feed Artifact Registry. GKE Dataplane V2 enforces NetworkPolicy. Gemini assists analysis only. OPA, Cloud KMS, mTLS, and MCP authorize and execute.
+
+```text
                          ┌─────────────────────┐
-                         │   Developers / CI   │
-                         │ GitHub / GitLab CI  │
+                         │  Developers / CI    │
+                         │ GitHub Actions + WIF│
                          └─────────┬───────────┘
                                    │
                                    ▼
                     ┌──────────────────────────┐
-                    │ Artifact Registry / GCR  │
+                    │ Artifact Registry        │
+                    │ signed v1 digests        │
                     └─────────┬────────────────┘
                               │
                               ▼
                   ┌────────────────────────────┐
-                  │  GKE Security Platform     │
+                  │  GKE vertex-agent-lab      │
+                  │  Dataplane V2 / WI         │
                   │                            │
                   │ ┌────────────────────────┐ │
-                  │ │  Workloads / Apps      │ │
+                  │ │ app01 workloads        │ │
+                  │ │ broken-app + Postgres  │ │
                   │ └────────────────────────┘ │
                   │                            │
                   │ ┌────────────────────────┐ │
-                  │ │ Falco Runtime Security │ │
+                  │ │ Falco (helm / falco)   │ │
                   │ └────────────────────────┘ │
                   │                            │
                   │ ┌────────────────────────┐ │
@@ -27,56 +33,77 @@
                   │ └────────────────────────┘ │
                   │                            │
                   │ ┌────────────────────────┐ │
-                  │ │ OPA / Kyverno Policies │ │
+                  │ │ OPA governance policy  │ │
                   │ └────────────────────────┘ │
                   │                            │
                   │ ┌────────────────────────┐ │
-                  │ │ MCP Security Gateway   │ │
+                  │ │ MCP mTLS Gateway       │ │
                   │ └────────────────────────┘ │
                   └────────────┬───────────────┘
                                │
                                ▼
               ┌────────────────────────────────┐
-              │ Telemetry Aggregation Layer    │
+              │ Telemetry and evidence         │
               │                                │
               │ - Cloud Logging                │
-              │ - Pub/Sub                      │
-              │ - Datadog                      │
+              │ - Pub/Sub + DLQ                │
               │ - Security Command Center      │
+              │ - Managed Prometheus           │
+              │ - BigQuery evidence dataset    │
               └───────────────┬────────────────┘
                               │
                               ▼
            ┌──────────────────────────────────────┐
-           │ Multi-Agent AI Security Layer        │
+           │ Multi-agent security workflow        │
+           │                                      │
+           │ ┌──────────────────────────────────┐ │
+           │ │ Event Aggregator                 │ │
+           │ │ Normalizes scanner findings      │ │
+           │ └──────────────────────────────────┘ │
            │                                      │
            │ ┌──────────────────────────────────┐ │
            │ │ Observer Agent                   │ │
-           │ │ Watches logs/events/findings     │ │
+           │ │ Validates incoming findings      │ │
            │ └──────────────────────────────────┘ │
            │                                      │
            │ ┌──────────────────────────────────┐ │
            │ │ Correlation Agent                │ │
-           │ │ Combines weak signals            │ │
+           │ │ Joins signals in Firestore       │ │
            │ └──────────────────────────────────┘ │
            │                                      │
            │ ┌──────────────────────────────────┐ │
            │ │ IR Analyst Agent                 │ │
-           │ │ Uses Vertex AI / Gemini          │ │
+           │ │ Vertex AI / Gemini 2.5 Flash     │ │
+           │ └──────────────────────────────────┘ │
+           │                                      │
+           │ ┌──────────────────────────────────┐ │
+           │ │ Governance Agent + OPA           │ │
+           │ │ DENY / NO_ACTION / PERMIT /      │ │
+           │ │ REQUIRE_APPROVAL                 │ │
+           │ └──────────────────────────────────┘ │
+           │                                      │
+           │ ┌──────────────────────────────────┐ │
+           │ │ Approval Agent + Cloud KMS v2    │ │
+           │ │ Verifies signed human decisions  │ │
            │ └──────────────────────────────────┘ │
            │                                      │
            │ ┌──────────────────────────────────┐ │
            │ │ Remediation Agent                │ │
-           │ │ Uses MCP-approved actions        │ │
+           │ │ Re-checks policy, calls MCP      │ │
            │ └──────────────────────────────────┘ │
            │                                      │
            │ ┌──────────────────────────────────┐ │
            │ │ Reporting Agent                  │ │
-           │ │ Slack / Jira / Incident Reports  │ │
+           │ │ incident-reports; Slack/Jira off │ │
            │ └──────────────────────────────────┘ │
            └──────────────────┬───────────────────┘
                               │
                               ▼
                  ┌──────────────────────────┐
                  │ Vertex AI / Gemini       │
-                 │ Reasoning + Summarizing  │
+                 │ Reasoning only           │
+                 │ Never authorizes         │
                  └──────────────────────────┘
+```
+
+Diagrams: [**network**](agentic-network.svg) · [**workflow**](agentic-ai-workflow.svg).

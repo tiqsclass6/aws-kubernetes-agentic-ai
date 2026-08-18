@@ -27,17 +27,17 @@ monitoring_notification_channel_ids = []
 pipeline_backlog_threshold                = 100
 pipeline_oldest_message_threshold_seconds = 300
 
-phase5_policy_id = "phase5-remediation"
+policy_id = "remediation"
 
 # Replace this placeholder with the Google identity authorized to review and sign approval decisions.
-phase5_approval_signer_members = [
+approval_signer_members = [
   "user:replace-with-reviewer@example.com",
 ]
 
-phase5_kms_keyring_id       = "agentic-governance"
-phase5_approval_key_id      = "approval-signing"
-phase5_approval_key_version = "1"
+kms_keyring_id       = "agentic-governance"
+approval_key_id      = "approval-signing"
+approval_key_version = "2"
 
-phase5_evidence_dataset_id        = "agentic_governance_evidence"
-phase5_evidence_retention_days    = 90
-phase5_approval_backlog_threshold = 0
+evidence_dataset_id        = "agentic_governance_evidence"
+evidence_retention_days    = 90
+approval_backlog_threshold = 0

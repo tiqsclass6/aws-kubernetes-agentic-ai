@@ -48,7 +48,7 @@ spec:
                 - /bin/sh
                 - -ec
                 - |
-                  prowler gcp \
+                  /home/prowler/.venv/bin/prowler gcp \
                     --project-ids "${PROJECT_ID}" \
                     --output-formats json-ocsf \
                     --output-directory /reports \
@@ -96,7 +96,7 @@ spec:
             - name: findings-publisher
 
               image: >-
-                us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:phase2-v1
+                us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/scanner-publisher:v1
 
               imagePullPolicy: IfNotPresent
 

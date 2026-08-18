@@ -8,7 +8,7 @@
 ![mTLS](https://img.shields.io/badge/mTLS-MCP_Gateway-003459?style=for-the-badge&logo=nginx&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-Keyless_Release-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 
-> **Status: configuration-ready for Phase 5 deployment.**  
+> **Status: configuration-ready for deployment.**  
 > This repository is a student portfolio lab that demonstrates a production-minded,
 > governed security-response workflow on Google Kubernetes Engine. Automated remediation,
 > Slack delivery, and Jira delivery are disabled by default.
@@ -147,6 +147,8 @@ Reporting Agent
   +--> BigQuery governance evidence
 ```
 
+Diagrams: [network](docs/architecture/agentic-network.svg) · [workflow](docs/architecture/agentic-ai-workflow.svg). GKE uses Dataplane V2 NetworkPolicy, not Calico.
+
 ### **Runtime namespaces**
 
 | **Namespace**     | **Purpose**                                                          |
@@ -212,7 +214,7 @@ Critical incidents require signed human approval by default.
 | **Layer**                       | **Technology**                                         |
 |---------------------------------|--------------------------------------------------------|
 | **Cloud**                       | Google Cloud                                           |
-| **Kubernetes**                  | GKE, Workload Identity, Calico NetworkPolicy           |
+| **Kubernetes**                  | GKE Dataplane V2, Workload Identity, NetworkPolicy     |
 | **Infrastructure as code**      | Terraform                                              |
 | **Event transport**             | Pub/Sub with retries and dead-letter topics            |
 | **AI analysis**                 | Vertex AI, Gemini 2.5 Flash                            |
@@ -234,14 +236,13 @@ agentic/
 ├── .github/
 │   ├── dependabot.yml
 │   └── workflows/
-│       ├── phase5-ci.yml
-│       └── phase5-release.yml
+│       ├── ci.yml
+│       └── release.yml
 │
 ├── docker/
 │   ├── aggregator
 │   ├── app
 │   ├── approval_agent
-│   ├── cert_guardian_agent
 │   ├── correlation_agent
 │   ├── governance_agent
 │   ├── ir_analyst_agent
@@ -253,11 +254,17 @@ agentic/
 │
 ├── docs/
 │   ├── architecture/
+│   │   ├── agentic-ai-workflow.svg
+│   │   ├── agentic-network.png
+│   │   ├── agentic-network.svg
 │   │   ├── api_gateway_comparison.md
 │   │   ├── architecture.md
 │   │   ├── high-level-architecture.md
 │   │   ├── mcp-architecture.md
 │   │   ├── namespace-architecture.md
+│   │   ├── plan-mode-summary.md
+│   │   ├── Agentic Security Platform Plan Mode Summary.docx
+│   │   ├── Agentic Security Platform Plan Mode Summary.pdf
 │   │   └── pod-architecture.md
 │   │
 │   ├── concepts/
@@ -284,7 +291,8 @@ agentic/
 │   │   └── secret-store.yaml
 │   │
 │   └── vulnerable-workloads/
-│       └── [contents not expanded in screenshot]
+│       ├── sample-events-configmap.yaml
+│       └── vulnerable-nginx.yaml
 │
 ├── helm/
 │   └── falco/
@@ -303,17 +311,17 @@ agentic/
 │   │   └── security-scanners.yaml
 │   │
 │   ├── observability/
-│   │   ├── phase5-agent-podmonitoring.yaml
-│   │   └── phase5-governance-podmonitoring.yaml
+│   │   ├── agent-podmonitoring.yaml
+│   │   └── governance-podmonitoring.yaml
 │   │
 │   ├── rbac/
 │   │   └── github-release-deployer.yaml
 │   │
 │   ├── reliability/
-│   │   ├── phase5-governance-hpa.yaml
-│   │   ├── phase5-governance-pdb.yaml
-│   │   ├── phase5-hpa.yaml
-│   │   └── phase5-pdb.yaml
+│   │   ├── agent-hpa.yaml
+│   │   ├── agent-pdb.yaml
+│   │   ├── governance-hpa.yaml
+│   │   └── governance-pdb.yaml
 │   │
 │   ├── approval-agent.yaml
 │   ├── broken-app.yaml
@@ -332,7 +340,7 @@ agentic/
 │   ├── mcp-server-sa.yaml
 │   ├── namespaces.yaml
 │   ├── observer-agent.yaml
-│   ├── postgres-secret.yaml
+│   ├── postgres-secret.example.yaml
 │   ├── postgres.yaml
 │   ├── prowler-cronjob.yaml
 │   ├── prowler-ksa.yaml
@@ -390,52 +398,53 @@ agentic/
 │   └── requirements-test.txt
 │
 ├── scripts/
-│   ├── build-phase5-images.sh
-│   ├── create-demo-secret.sh
-│   ├── deploy-phase5-images.sh
-│   ├── deploy-phase5.sh
-│   ├── generate-mcp-mtls.sh
-│   ├── install-falco.sh
-│   ├── phase5-release-images.sh
-│   ├── phase5-validate.sh
-│   ├── review-phase5-approval.sh
-│   ├── smoke-test-metrics.sh
-│   ├── test-phase5-governance.sh
-│   └── test-pipeline.sh
+│   ├── _ui.sh
+│   ├── 01-validate.sh
+│   ├── 02-conftest-test.sh
+│   ├── 03-adopt-retained-gcp.sh
+│   ├── 04-build-images.sh
+│   ├── 05-install-falco.sh
+│   ├── 06-create-demo-secret.sh
+│   ├── 07-generate-mcp-mtls.sh
+│   ├── 08-deploy.sh
+│   ├── 09-test-governance.sh
+│   ├── 10-test-pipeline.sh
+│   ├── 11-review-approval.sh
+│   ├── 12-smoke-test-metrics.sh
+│   ├── 13-release-images.sh
+│   ├── 14-deploy-release-images.sh
+│   └── 15-teardown.sh
 │
 ├── terraform/
-│   ├── terraform/
-│   │   └── [nested directory not expanded in screenshot]
-│   │
-│   ├── .terraform.lock.hcl
-│   ├── 0-variables.tf
-│   ├── 1-provider.tf
-│   ├── 2-network.tf
-│   ├── 3-artifact-registry.tf
-│   ├── 4-gke.tf
-│   ├── 5-node-pool.tf
-│   ├── 6-runtime.tf
-│   ├── 7-pubsub.tf
-│   ├── 8-ir-analyst-agent-iam.tf
-│   ├── 9-mcp-server-iam.tf
-│   ├── 10-telemetry-agent-iam.tf
-│   ├── 11-multi-agent-iam.tf
-│   ├── 12-observer-agent-iam.tf
-│   ├── 13-agent-pubsub.tf
-│   ├── 14-logging-sink.tf
-│   ├── 15-security-command-center.tf
-│   ├── 16-firestore.tf
-│   ├── 17-reporting-secrets.tf
-│   ├── 18-github-actions-wif.tf
-│   ├── 19-phase4-observability.tf
-│   ├── 20-phase5-governance-iam.tf
-│   ├── 21-phase5-kms.tf
-│   ├── 22-phase5-state.tf
-│   ├── 23-phase5-evidence.tf
-│   ├── 24-outputs.tf
-│   └── terraform.tfvars
+│   ├── 01-variables.tf
+│   ├── 02-provider.tf
+│   ├── 03-network.tf
+│   ├── 04-artifact-registry.tf
+│   ├── 05-gke.tf
+│   ├── 06-node-pool.tf
+│   ├── 07-runtime.tf
+│   ├── 08-pubsub.tf
+│   ├── 09-ir-analyst-agent-iam.tf
+│   ├── 10-mcp-server-iam.tf
+│   ├── 11-telemetry-agent-iam.tf
+│   ├── 12-multi-agent-iam.tf
+│   ├── 13-observer-agent-iam.tf
+│   ├── 14-agent-pubsub.tf
+│   ├── 15-logging-sink.tf
+│   ├── 16-security-command-center.tf
+│   ├── 17-firestore.tf
+│   ├── 18-reporting-secrets.tf
+│   ├── 19-github-actions-wif.tf
+│   ├── 20-observability.tf
+│   ├── 21-governance-iam.tf
+│   ├── 22-kms.tf
+│   ├── 23-firestore-ttl.tf
+│   ├── 24-evidence.tf
+│   ├── 25-outputs.tf
+│   └── terraform.tfvars.example
 │
 ├── .gitignore
+├── .trivyignore.yaml
 └── README.md
 ```
 
@@ -446,7 +455,7 @@ agentic/
 | Terraform `>= 1.10.0` | Provision Google Cloud infrastructure                           |
 | Google Cloud CLI      | Authentication, GKE access, Pub/Sub, KMS, and Artifact Registry |
 | `kubectl`             | Kubernetes deployment and verification                          |
-| Docker with Buildx    | Build Phase 5 images locally                                    |
+| Docker with Buildx    | Build container images locally                                    |
 | Python 3.11           | Tests, validation, secret generation, and helper scripts        |
 | OpenSSL               | Generate the MCP server and client certificate authorities      |
 | OPA                   | Run governance policy tests                                     |
@@ -468,7 +477,7 @@ The GCS backend bucket must exist before `terraform init`, or the backend config
 
 ## **Quick start**
 
-### 1. Authenticate
+### **1. Authenticate**
 
 ```bash
 gcloud auth login
@@ -476,7 +485,7 @@ gcloud auth application-default login
 gcloud config set project class-6-5-tiqs
 ```
 
-### 2. Create local Terraform variables
+### **2. Create local Terraform variables**
 
 ```bash
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
@@ -485,45 +494,53 @@ cp terraform/terraform.tfvars.example terraform/terraform.tfvars
 Replace the documentation values in `terraform/terraform.tfvars`:
 
 ```text
-203.0.113.10/32
-user:replace-with-reviewer@example.com
+zone = "us-central1-c"
+authorized_networks CIDR = YOUR_CURRENT_PUBLIC_IP/32
+approval_signer_members = ["user:YOUR_WORKSPACE_ACCOUNT"]
+approval_key_version = "2"
 ```
 
-`terraform.tfvars` is ignored and must not be committed.
+The approval signer must be a Google Workspace identity in the organization's allowed
+domain. Consumer Gmail accounts cannot own the BigQuery evidence dataset or impersonate
+`evidence-admin` (`iam.allowedPolicyMemberDomains`). Do not commit `terraform.tfvars`.
 
-### 3. Validate the repository
+### **3. Validate the repository**
 
 ```bash
 chmod +x scripts/*.sh
-./scripts/phase5-validate.sh
+./scripts/01-validate.sh
 ```
 
-### 4. Provision the infrastructure
+### **4. Provision the infrastructure**
 
 ```bash
 terraform -chdir=terraform init
 terraform -chdir=terraform fmt -recursive
 terraform -chdir=terraform validate
-terraform -chdir=terraform plan -out=phase5.tfplan
-terraform -chdir=terraform apply phase5.tfplan
+terraform -chdir=terraform plan -out=agentic.tfplan
+terraform -chdir=terraform apply agentic.tfplan
 ```
 
-### 5. Obtain cluster credentials
+If apply 409s on a retained Workload Identity pool, KMS key ring, or custom role, or the
+node pool is in `ERROR`, run `./scripts/03-adopt-retained-gcp.sh` and plan again. Default
+node type is `e2-standard-4` in `us-central1-c` after N2 stockouts in `us-central1-b`.
+
+### **5. Obtain cluster credentials**
 
 ```bash
 gcloud container clusters get-credentials vertex-agent-lab \
-  --zone us-central1-a \
+  --zone us-central1-c \
   --project class-6-5-tiqs
 ```
 
-### 6. Build and push images
+### **6. Build and push images**
 
 ```bash
 PROJECT_ID=class-6-5-tiqs \
 REGION=us-central1 \
 REPOSITORY=vertex-agent-lab \
-TAG=phase5-v1 \
-./scripts/build-phase5-images.sh
+TAG=v1 \
+./scripts/04-build-images.sh
 ```
 
 The image inventory is:
@@ -539,19 +556,21 @@ remediation-agent
 reporting-agent
 mcp-server
 scanner-publisher
-demo-app
+app
 ```
 
-### 7. Install Falco
+There is no `vertex-agent` image. `broken-app` runs `app:v1`.
+
+### **7. Install Falco**
 
 ```bash
-./scripts/install-falco.sh
+./scripts/05-install-falco.sh
 ```
 
-### 8. Deploy Phase 5
+### **8. Deploy the platform**
 
 ```bash
-./scripts/deploy-phase5.sh
+./scripts/08-deploy.sh
 ```
 
 The deploy script:
@@ -565,6 +584,11 @@ The deploy script:
 - waits for the Deployments to become ready;
 - applies NetworkPolicies, PodMonitoring, HPAs, PDBs, and scanner CronJobs.
 
+`06-create-demo-secret.sh` does not rotate an existing Postgres Secret. NetworkPolicies allow
+kube-dns, node-local-dns, `10.112.0.10/32`, and NodeLocal DNSCache `169.254.20.10/32`.
+Trivy scans `app`, `mcp-server`, `event-aggregator`, and `scanner-publisher` at
+`v1`. Prowler 5.35.0 is invoked as `/home/prowler/.venv/bin/prowler`.
+
 Automated remediation remains disabled after deployment.
 
 Full commands, validation checks, approval handling, and teardown steps are documented in [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
@@ -574,11 +598,11 @@ Full commands, validation checks, approval handling, and teardown steps are docu
 Only these workflows are active:
 
 ```text
-.github/workflows/phase5-ci.yml
-.github/workflows/phase5-release.yml
+.github/workflows/ci.yml
+.github/workflows/release.yml
 ```
 
-### **Phase 5 CI**
+### **CI**
 
 The CI workflow performs:
 
@@ -597,7 +621,7 @@ The CI workflow performs:
 The release workflow:
 
 1. authenticates to Google Cloud through GitHub OIDC and Workload Identity Federation;
-2. builds the Phase 5 images;
+2. builds the images;
 3. scans images for qualifying HIGH and CRITICAL vulnerabilities;
 4. generates SPDX SBOMs with Syft;
 5. signs immutable image digests with Cosign;
@@ -624,7 +648,7 @@ The `production` GitHub environment should require reviewer approval before depl
 ### **Local static validation**
 
 ```bash
-./scripts/phase5-validate.sh
+./scripts/01-validate.sh
 ```
 
 This requires Python, pytest, Terraform, OPA, and Conftest.
@@ -632,7 +656,7 @@ This requires Python, pytest, Terraform, OPA, and Conftest.
 ### **Governance smoke test**
 
 ```bash
-./scripts/test-phase5-governance.sh
+./scripts/09-test-governance.sh
 ```
 
 Expected result:
@@ -646,13 +670,13 @@ no remediation authorized
 ### **Metrics smoke test**
 
 ```bash
-./scripts/smoke-test-metrics.sh
+./scripts/12-smoke-test-metrics.sh
 ```
 
 ### **End-to-end governed pipeline test**
 
 ```bash
-./scripts/test-pipeline.sh
+./scripts/10-test-pipeline.sh
 ```
 
 This publishes two correlated synthetic findings and waits for the final incident report.
@@ -683,7 +707,7 @@ gcloud pubsub subscriptions pull approval-requests-review-sub \
 Review and sign the next request:
 
 ```bash
-./scripts/review-phase5-approval.sh \
+./scripts/11-review-approval.sh \
   approve \
   "analyst@example.com" \
   "Approved after reviewing the correlated evidence and proposed target."
@@ -692,7 +716,7 @@ Review and sign the next request:
 Deny a request:
 
 ```bash
-./scripts/review-phase5-approval.sh \
+./scripts/11-review-approval.sh \
   deny \
   "analyst@example.com" \
   "Denied because the proposed action requires additional investigation."
@@ -707,6 +731,9 @@ The script:
 - signs it with the configured Cloud KMS key version;
 - publishes the signed decision;
 - acknowledges the original request only after publication succeeds.
+
+The live signing key version is `2`. Version `1` is DESTROYED. Sign as the Workspace
+identity in `approval_signer_members`.
 
 ## **Controlled remediation**
 
@@ -762,7 +789,7 @@ agent_pubsub_publish_seconds
 agent_processing_exceptions_total
 ```
 
-Phase 5 also provisions:
+The platform also provisions:
 
 - Managed Service for Prometheus;
 - PodMonitoring objects;
@@ -772,6 +799,10 @@ Phase 5 also provisions:
 - dead-letter monitoring;
 - BigQuery governance evidence storage;
 - Firestore correlation, approval, and execution state.
+
+The BigQuery dataset ACL is only `evidence-admin`. List and query tables by
+impersonating that SA from a Workspace account. Do not leave
+`CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT` set when using `kubectl`.
 
 Optional Slack and Jira integrations use Secret Manager containers. Terraform does not
 store the secret values.
@@ -808,49 +839,33 @@ MSYS_NO_PATHCONV=1 command ...
 
 where required.
 
+Do not type placeholders in angle brackets (`<id>`, `<terraform output>`). Git Bash treats `<file>` as redirection. Workflow YAML under `.github/workflows/` is GitHub-hosted only.
+
+`gcloud ... --format=value(...)` lists are CRLF. Pipe through `tr -d '\r'` before a delete loop.
+
+The Unix `bq` wrapper looks for `python3.14`. Pin a real interpreter:
+
+```bash
+export CLOUDSDK_PYTHON="/c/Python312/python.exe"
+```
+
+Use `bq.cmd` only for short commands such as `ls`. Do not run `bq.cmd query` from Git Bash; it splits on `C:\Program Files`. Keep SQL on one line with `bq query`.
+
+Unset `CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT` before `kubectl`. If kubectl still runs as `evidence-admin`, delete `%USERPROFILE%\.kube\gke_gcloud_auth_plugin_cache`. If `gke-gcloud-auth-plugin` cannot write `legacy_credentials\admin@tiqsapp.com\adc.json`, use the Gmail project Owner for cluster admin.
+
 ### **Public GKE endpoint**
 
 If the workstation public IP changes, update the ignored `terraform/terraform.tfvars` entry under `authorized_networks`, then reapply Terraform.
 
 ## **Cleanup**
 
-Delete Kubernetes workloads and namespaces:
-
 ```bash
-kubectl delete namespace \
-  app01 \
-  security \
-  shared-services \
-  ai-agents \
-  ai-governance \
-  mcp \
-  mcp-gateway \
-  --ignore-not-found
+unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
+gcloud config unset auth/impersonate_service_account
+CONFIRM_TEARDOWN=yes ./scripts/15-teardown.sh
 ```
 
-Delete Artifact Registry image packages before destroying the repository resource:
-
-```bash
-for package in $(gcloud artifacts packages list \
-  --project=class-6-5-tiqs \
-  --location=us-central1 \
-  --repository=vertex-agent-lab \
-  --format='value(name)'); do
-  gcloud artifacts packages delete "${package##*/}" \
-    --project=class-6-5-tiqs \
-    --location=us-central1 \
-    --repository=vertex-agent-lab \
-    --quiet
-done
-```
-
-Destroy Terraform-managed infrastructure:
-
-```bash
-terraform -chdir=terraform plan -destroy -out=destroy.tfplan
-terraform -chdir=terraform apply destroy.tfplan
-rm -f terraform/destroy.tfplan terraform/phase5.tfplan
-```
+The script deletes lab namespaces, Artifact Registry packages, the evidence dataset, and Terraform-managed infrastructure. KMS key rings cannot be deleted. The next apply should run `./scripts/03-adopt-retained-gcp.sh` first. Manual stage-by-stage commands are in [`docs/RUNBOOK.md`](docs/RUNBOOK.md) section 25.
 
 ## **Scope and limitations**
 
