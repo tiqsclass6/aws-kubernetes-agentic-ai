@@ -17,9 +17,9 @@ concurrency:
 env:
   PYTHON_VERSION: "3.11"
   TERRAFORM_VERSION: "1.15.8"
-  OPA_VERSION: "1.18.2"
-  CONFTEST_VERSION: "0.68.2"
-  TRIVY_VERSION: "0.70.0"
+  OPA_VERSION: "1.19.1"
+  CONFTEST_VERSION: "0.69.0"
+  TRIVY_VERSION: "0.74.0"
 
 jobs:
   lint:
@@ -186,6 +186,8 @@ jobs:
           trivy --version
 
       - name: Scan repository with Trivy
+        env:
+          TF_VAR_project_id: class-6-5-tiqs
         run: |
           trivy filesystem \
             --scanners vuln,secret,misconfig \
