@@ -69,7 +69,7 @@ jobs:
         uses: sigstore/cosign-installer@v4.1.2
 
       - name: Build, scan, attest, and sign images
-        run: ./scripts/13-release-images.sh
+        run: bash scripts/13-release-images.sh
 
       - name: Upload release evidence
         uses: actions/upload-artifact@v7
@@ -88,5 +88,4 @@ jobs:
 
       - name: Deploy immutable image digests
         if: ${{ inputs.deploy }}
-        run: |
-          ./scripts/14-deploy-release-images.sh release-evidence/image-lock.json
+        run: bash scripts/14-deploy-release-images.sh release-evidence/image-lock.json
