@@ -19,7 +19,7 @@ data:
   FIRESTORE_DATABASE: "(default)"
   APPROVAL_COLLECTION: approval_requests
   GOVERNANCE_AUDIT_TOPIC: governance-audit
-  KMS_KEY_VERSION: projects/class-6-5-tiqs/locations/us-central1/keyRings/agentic-governance/cryptoKeys/approval-signing/cryptoKeyVersions/2
+  KMS_KEY_VERSION: projects/class-6-5-tiqs/locations/us-central1/keyRings/agentic-governance/cryptoKeys/approval-signing/cryptoKeyVersions/7
   MAX_CLOCK_SKEW_SECONDS: "120"
   PERMIT_TTL_SECONDS: "600"
   MAX_CONCURRENT_MESSAGES: "2"

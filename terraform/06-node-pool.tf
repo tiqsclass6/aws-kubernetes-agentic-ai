@@ -54,6 +54,10 @@ resource "google_container_node_pool" "primary" {
 
     metadata = {
       disable-legacy-endpoints = "true"
+      # enable-oslogin is reserved on GKE node pools (same as cluster
+      # node_config). Project metadata still enables OS Login.
+      block-project-ssh-keys = "TRUE"
+      serial-port-enable     = "FALSE"
     }
 
     shielded_instance_config {

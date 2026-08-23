@@ -1,6 +1,6 @@
 project_id   = "class-6-5-tiqs"
 region       = "us-central1"
-zone         = "us-central1-a"
+zone         = "us-central1-c"
 cluster_name = "vertex-agent-lab"
 
 # Replace this documentation-only address with your current public IP. Obtain the address outside Terraform, then add /32.
@@ -36,7 +36,8 @@ approval_signer_members = [
 
 kms_keyring_id       = "agentic-governance"
 approval_key_id      = "approval-signing"
-approval_key_version = "2"
+lab_cmek_key_id      = "lab-cmek"
+approval_key_version = "7"
 
 evidence_dataset_id        = "agentic_governance_evidence"
 evidence_retention_days    = 90

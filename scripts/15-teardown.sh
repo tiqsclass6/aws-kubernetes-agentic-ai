@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Tear down lab Kubernetes objects, Artifact Registry packages, the BigQuery
-# evidence dataset, and Terraform-managed GCP resources.
+# Tear down lab Kubernetes objects (including Helm namespace falco), Artifact
+# Registry packages, the BigQuery evidence dataset, and Terraform-managed GCP
+# resources.
 #
 # Required:
 #   CONFIRM_TEARDOWN=yes
@@ -55,6 +56,7 @@ if [[ "${SKIP_KUBERNETES:-}" != "yes" ]]; then
     ai-governance \
     mcp \
     mcp-gateway \
+    falco \
     --ignore-not-found
   success "Lab namespaces deleted (or already absent)."
 else

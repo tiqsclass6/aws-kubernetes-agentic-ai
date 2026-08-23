@@ -79,4 +79,4 @@ Reporting Agent
   +--> BigQuery governance evidence
 ```
 
-See [**network**](agentic-network.svg) and [**workflow**](agentic-ai-workflow.svg). The MCP hop is detailed in [**mcp-architecture.md**](mcp-architecture.md).
+![Agentic AI Workflow](agentic-ai-workflow.svg)

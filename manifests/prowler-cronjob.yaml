@@ -50,9 +50,11 @@ spec:
                 - |
                   /home/prowler/.venv/bin/prowler gcp \
                     --project-ids "${PROJECT_ID}" \
+                    --mutelist-file /config/mutelist.yaml \
                     --output-formats json-ocsf \
                     --output-directory /reports \
-                    --output-filename prowler-gcp
+                    --output-filename prowler-gcp \
+                    --ignore-exit-code-3
 
                   touch /reports/.done
 
@@ -92,6 +94,10 @@ spec:
 
                 - name: tmp
                   mountPath: /tmp
+
+                - name: mutelist
+                  mountPath: /config
+                  readOnly: true
 
             - name: findings-publisher
 
@@ -151,3 +157,7 @@ spec:
 
             - name: tmp
               emptyDir: {}
+
+            - name: mutelist
+              configMap:
+                name: prowler-mutelist

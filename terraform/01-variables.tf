@@ -14,7 +14,7 @@ variable "region" {
 variable "zone" {
   description = "GCP zone for the (zonal) GKE cluster"
   type        = string
-  default     = "us-central1-a"
+  default     = "us-central1-c"
 }
 
 variable "gcp_credentials_file" {
@@ -78,6 +78,18 @@ variable "authorized_networks" {
     display_name = string
   }))
   default = []
+}
+
+variable "master_ipv4_cidr_block" {
+  description = "Private RFC 1918 range used by the GKE control plane when private nodes are enabled. Must not overlap the subnet, pod, or service ranges."
+  type        = string
+  default     = "172.16.0.16/28"
+}
+
+variable "enable_private_nodes" {
+  description = "Give GKE nodes private IPs only and send egress through Cloud NAT. Keeps the control plane public so kubectl still works from authorized_networks."
+  type        = bool
+  default     = true
 }
 
 # Artifact Registry
@@ -217,7 +229,7 @@ variable "github_owner" {
 variable "github_repository" {
   description = "GitHub repository name trusted by the release identity"
   type        = string
-  default     = "agentic-security-lab"
+  default     = "aws-kubernetes-agentic-ai"
 }
 
 variable "github_default_branch" {
@@ -282,10 +294,16 @@ variable "approval_key_id" {
   default     = "approval-signing"
 }
 
+variable "lab_cmek_key_id" {
+  description = "Cloud KMS symmetric key used as CMEK for BigQuery evidence, the audit-log bucket, and Secret Manager"
+  type        = string
+  default     = "lab-cmek"
+}
+
 variable "approval_key_version" {
   description = "Enabled Cloud KMS key version used by the approval review script and approval agent"
   type        = string
-  default     = "2"
+  default     = "7"
 }
 
 variable "evidence_dataset_id" {

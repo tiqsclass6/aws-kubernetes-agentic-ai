@@ -8,56 +8,47 @@
 ![mTLS](https://img.shields.io/badge/mTLS-MCP_Gateway-003459?style=for-the-badge&logo=nginx&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-Keyless_Release-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 
-> **Status: configuration-ready for deployment.**  
-> This repository is a student portfolio lab that demonstrates a production-minded,
-> governed security-response workflow on Google Kubernetes Engine. Automated remediation,
-> Slack delivery, and Jira delivery are disabled by default.
+> **Status: configuration-ready for deployment.**
+> Student portfolio lab for a governed security-response workflow on GKE. Last verified live e2e: 22 Aug 2026 (then torn down). Re-apply from the Quick start or [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Automated remediation, Slack delivery, and Jira delivery are disabled by default.
 
-## **Table of contents**
+## **Table of Contents**
 
-- [Project summary](#project-summary)
-- [Business value](#business-value)
-- [Architecture](#architecture)
-- [Security model](#security-model)
-- [Technology stack](#technology-stack)
-- [Repository structure](#repository-structure)
-- [Prerequisites](#prerequisites)
-- [Quick start](#quick-start)
-- [CI/CD and software supply chain](#cicd-and-software-supply-chain)
-- [Validation](#validation)
-- [Human approval workflow](#human-approval-workflow)
-- [Controlled remediation](#controlled-remediation)
-- [Observability and evidence](#observability-and-evidence)
-- [Windows and VS Code notes](#windows-and-vs-code-notes)
-- [Cleanup](#cleanup)
-- [Scope and limitations](#scope-and-limitations)
-- [Author](#author)
+- [**Project Summary**](#project-summary)
+- [**Business Value**](#business-value)
+- [**Architecture**](#architecture)
+- [**Security Model**](#security-model)
+- [**Technology Stack**](#technology-stack)
+- [**Repository Structure**](#repository-structure)
+- [**Prerequisites**](#prerequisites)
+- [**Quick Start**](#quick-start)
+- [**CI/CD and Software Supply Chain**](#cicd-and-software-supply-chain)
+- [**Validation**](#validation)
+- [**Human Approval Workflow**](#human-approval-workflow)
+- [**Controlled Remediation**](#controlled-remediation)
+- [**Observability and Evidence**](#observability-and-evidence)
+- [**Windows and VS Code Notes**](#windows-and-vs-code-notes)
+- [**Cleanup**](#cleanup)
+- [**Scope and Limitations**](#scope-and-limitations)
+- [**Author**](#author)
 
-## **Project summary**
+## **Project Summary**
 
-The platform receives security telemetry, correlates related signals, uses Gemini to assist
-with incident analysis, applies deterministic Open Policy Agent policy, obtains a
-Cloud KMS-signed human approval when required, and permits a tightly scoped Kubernetes
-action only after every governance control passes.
+The platform receives security telemetry, correlates related signals, uses Gemini to assist with incident analysis, applies deterministic Open Policy Agent policy, obtains a
+Cloud KMS-signed human approval when required, and permits a tightly scoped Kubernetes action only after every governance control passes.
 
 The system deliberately separates:
 
 - **Analysis** — Gemini helps explain an incident and recommend a response.
-- **Authorization** — OPA and deterministic application logic decide whether the action
-  is denied, permitted, or requires approval.
+- **Authorization** — OPA and deterministic application logic decide whether the action is denied, permitted, or requires approval.
 - **Approval** — Cloud KMS binds an authorized reviewer to an exact request.
-- **Execution** — the Remediation Agent and MCP security boundary independently verify
-  the authorization before any Kubernetes action occurs.
-- **Evidence** — Pub/Sub, Firestore, Cloud Logging, Cloud Monitoring, and BigQuery retain
-  operational and governance evidence.
+- **Execution** — the Remediation Agent and MCP security boundary independently verify the authorization before any Kubernetes action occurs.
+- **Evidence** — Pub/Sub, Firestore, Cloud Logging, Cloud Monitoring, and BigQuery retain operational and governance evidence.
 
 This is not an unrestricted autonomous agent. It is a controlled security automation lab.
 
-## **Business value**
+## **Business Value**
 
-The project models a common enterprise problem: security teams receive more alerts than
-analysts can investigate manually, but organizations cannot safely allow an AI model to
-make unrestricted infrastructure changes.
+The project models a common enterprise problem: security teams receive more alerts than analysts can investigate manually, but organizations cannot safely allow an AI model to make unrestricted infrastructure changes.
 
 This architecture shows how an organization can:
 
@@ -147,7 +138,10 @@ Reporting Agent
   +--> BigQuery governance evidence
 ```
 
-Diagrams: [network](docs/architecture/agentic-network.svg) · [workflow](docs/architecture/agentic-ai-workflow.svg). GKE uses Dataplane V2 NetworkPolicy, not Calico.
+- AI workflow diagram:
+    ![Agentic AI Workflow](docs/architecture/agentic-ai-workflow.svg)
+
+The GKE cluster uses Dataplane V2 NetworkPolicy, not Calico.
 
 ### **Runtime namespaces**
 
@@ -177,7 +171,7 @@ Reporting Agent:
   ENABLE_JIRA: "false"
 ```
 
-### **Enforcement controls**
+### **Enforcement Controls**
 
 The platform applies the following controls before execution:
 
@@ -196,20 +190,16 @@ The platform applies the following controls before execution:
 
 Critical incidents require signed human approval by default.
 
-### **Identity and access**
+### **Identity and Access**
 
-- GKE Workload Identity maps each Kubernetes service account to a dedicated Google
-  service account.
-- Agents receive only the Pub/Sub, Firestore, KMS, Secret Manager, BigQuery, or Vertex AI
-  permissions required by their role.
+- GKE Workload Identity maps each Kubernetes service account to a dedicated Google service account.
+- Agents receive only the Pub/Sub, Firestore, KMS, Secret Manager, BigQuery, or Vertex AI permissions required by their role.
 - The MCP Server holds the Kubernetes permissions used by the remediation broker.
 - Only the Remediation Agent receives an MCP client certificate.
-- GitHub Actions uses Workload Identity Federation instead of a stored Google service
-  account key.
-- GitHub release RBAC is namespace-scoped and permits only the required Deployment and
-  scanner CronJob updates.
+- GitHub Actions uses Workload Identity Federation instead of a stored Google service account key.
+- GitHub release RBAC is namespace-scoped and permits only the required Deployment and scanner CronJob updates.
 
-## **Technology stack**
+## **Technology Stack**
 
 | **Layer**                       | **Technology**                                         |
 |---------------------------------|--------------------------------------------------------|
@@ -229,7 +219,7 @@ Critical incidents require signed human approval by default.
 | **Supply-chain controls**       | Trivy, Syft, Cosign, immutable image digests           |
 | **Language**                    | Python 3.11                                            |
 
-## **Repository structure**
+## **Repository Structure**
 
 ```text
 agentic/
@@ -441,8 +431,10 @@ agentic/
 │   ├── 23-firestore-ttl.tf
 │   ├── 24-evidence.tf
 │   ├── 25-outputs.tf
+│   ├── 26-cis-hardening.tf
 │   └── terraform.tfvars.example
 │
+├── .gitattributes
 ├── .gitignore
 ├── .trivyignore.yaml
 └── README.md
@@ -455,7 +447,7 @@ agentic/
 | Terraform `>= 1.10.0` | Provision Google Cloud infrastructure                           |
 | Google Cloud CLI      | Authentication, GKE access, Pub/Sub, KMS, and Artifact Registry |
 | `kubectl`             | Kubernetes deployment and verification                          |
-| Docker with Buildx    | Build container images locally                                    |
+| Docker with Buildx    | Build container images locally                                  |
 | Python 3.11           | Tests, validation, secret generation, and helper scripts        |
 | OpenSSL               | Generate the MCP server and client certificate authorities      |
 | OPA                   | Run governance policy tests                                     |
@@ -475,7 +467,7 @@ prefix = "agentic/terraform/state"
 
 The GCS backend bucket must exist before `terraform init`, or the backend configuration must be changed to a bucket you control.
 
-## **Quick start**
+## **Quick Start**
 
 ### **1. Authenticate**
 
@@ -485,7 +477,7 @@ gcloud auth application-default login
 gcloud config set project class-6-5-tiqs
 ```
 
-### **2. Create local Terraform variables**
+### **2. Create Local Terraform Variables**
 
 ```bash
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
@@ -497,21 +489,19 @@ Replace the documentation values in `terraform/terraform.tfvars`:
 zone = "us-central1-c"
 authorized_networks CIDR = YOUR_CURRENT_PUBLIC_IP/32
 approval_signer_members = ["user:YOUR_WORKSPACE_ACCOUNT"]
-approval_key_version = "2"
+approval_key_version = "7"
 ```
 
-The approval signer must be a Google Workspace identity in the organization's allowed
-domain. Consumer Gmail accounts cannot own the BigQuery evidence dataset or impersonate
-`evidence-admin` (`iam.allowedPolicyMemberDomains`). Do not commit `terraform.tfvars`.
+The approval signer must be a Google Workspace identity in the organization's allowed domain. Consumer Gmail accounts cannot own the BigQuery evidence dataset or impersonate `evidence-admin` (`iam.allowedPolicyMemberDomains`). Do not commit `terraform.tfvars`.
 
-### **3. Validate the repository**
+### **3. Validate the Repository**
 
 ```bash
 chmod +x scripts/*.sh
 ./scripts/01-validate.sh
 ```
 
-### **4. Provision the infrastructure**
+### **4. Provision the Infrastructure**
 
 ```bash
 terraform -chdir=terraform init
@@ -521,11 +511,9 @@ terraform -chdir=terraform plan -out=agentic.tfplan
 terraform -chdir=terraform apply agentic.tfplan
 ```
 
-If apply 409s on a retained Workload Identity pool, KMS key ring, or custom role, or the
-node pool is in `ERROR`, run `./scripts/03-adopt-retained-gcp.sh` and plan again. Default
-node type is `e2-standard-4` in `us-central1-c` after N2 stockouts in `us-central1-b`.
+After a teardown, run `./scripts/03-adopt-retained-gcp.sh` before plan (KMS rings and the WIF pool survive destroy). If apply 409s on those names, or the node pool is in `ERROR`, adopt and plan again. Default node type is `e2-standard-4` in `us-central1-c`. Pin `approval_key_version` to the ENABLED signing version adopt prints (last e2e: `7`).
 
-### **5. Obtain cluster credentials**
+### **5. Obtain Cluster Credentials**
 
 ```bash
 gcloud container clusters get-credentials vertex-agent-lab \
@@ -533,7 +521,7 @@ gcloud container clusters get-credentials vertex-agent-lab \
   --project class-6-5-tiqs
 ```
 
-### **6. Build and push images**
+### **6. Build and Push Images**
 
 ```bash
 PROJECT_ID=class-6-5-tiqs \
@@ -567,7 +555,7 @@ There is no `vertex-agent` image. `broken-app` runs `app:v1`.
 ./scripts/05-install-falco.sh
 ```
 
-### **8. Deploy the platform**
+### **8. Deploy the Platform**
 
 ```bash
 ./scripts/08-deploy.sh
@@ -584,16 +572,14 @@ The deploy script:
 - waits for the Deployments to become ready;
 - applies NetworkPolicies, PodMonitoring, HPAs, PDBs, and scanner CronJobs.
 
-`06-create-demo-secret.sh` does not rotate an existing Postgres Secret. NetworkPolicies allow
-kube-dns, node-local-dns, `10.112.0.10/32`, and NodeLocal DNSCache `169.254.20.10/32`.
-Trivy scans `app`, `mcp-server`, `event-aggregator`, and `scanner-publisher` at
-`v1`. Prowler 5.35.0 is invoked as `/home/prowler/.venv/bin/prowler`.
+`06-create-demo-secret.sh` does not rotate an existing Postgres Secret. NetworkPolicies allow kube-dns, node-local-dns, `10.112.0.10/32`, and NodeLocal DNSCache `169.254.20.10/32`.
+Trivy scans `app`, `mcp-server`, `event-aggregator`, and `scanner-publisher` at `v1`. Prowler 5.35.0 is invoked as `/home/prowler/.venv/bin/prowler`.
 
 Automated remediation remains disabled after deployment.
 
 Full commands, validation checks, approval handling, and teardown steps are documented in [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 
-## **CI/CD and software supply chain**
+## **CI/CD and Software Supply Chain**
 
 Only these workflows are active:
 
@@ -616,7 +602,7 @@ The CI workflow performs:
 - Trivy filesystem vulnerability, secret, and misconfiguration scanning;
 - SARIF upload when GitHub permits security-event publication.
 
-### **Governed release**
+### **Governed Release**
 
 The release workflow:
 
@@ -645,7 +631,7 @@ The `production` GitHub environment should require reviewer approval before depl
 
 ## **Validation**
 
-### **Local static validation**
+### **Local Static Validation**
 
 ```bash
 ./scripts/01-validate.sh
@@ -653,7 +639,7 @@ The `production` GitHub environment should require reviewer approval before depl
 
 This requires Python, pytest, Terraform, OPA, and Conftest.
 
-### **Governance smoke test**
+### **Governance Smoke Test**
 
 ```bash
 ./scripts/09-test-governance.sh
@@ -667,13 +653,13 @@ policy.approved = false
 no remediation authorized
 ```
 
-### **Metrics smoke test**
+### **Metrics Smoke Test**
 
 ```bash
 ./scripts/12-smoke-test-metrics.sh
 ```
 
-### **End-to-end governed pipeline test**
+### **End-to-End Governed Pipeline Test**
 
 ```bash
 ./scripts/10-test-pipeline.sh
@@ -681,7 +667,7 @@ no remediation authorized
 
 This publishes two correlated synthetic findings and waits for the final incident report.
 
-### **Core status checks**
+### **Core Status Checks**
 
 ```bash
 kubectl get deployments -A
@@ -693,7 +679,7 @@ kubectl get pdb -A
 kubectl get cronjob -n security
 ```
 
-## **Human approval workflow**
+## **Human Approval Workflow**
 
 List pending approval requests:
 
@@ -709,7 +695,7 @@ Review and sign the next request:
 ```bash
 ./scripts/11-review-approval.sh \
   approve \
-  "analyst@example.com" \
+  "admin@tiqsapp.com" \
   "Approved after reviewing the correlated evidence and proposed target."
 ```
 
@@ -718,7 +704,7 @@ Deny a request:
 ```bash
 ./scripts/11-review-approval.sh \
   deny \
-  "analyst@example.com" \
+  "admin@tiqsapp.com" \
   "Denied because the proposed action requires additional investigation."
 ```
 
@@ -732,10 +718,9 @@ The script:
 - publishes the signed decision;
 - acknowledges the original request only after publication succeeds.
 
-The live signing key version is `2`. Version `1` is DESTROYED. Sign as the Workspace
-identity in `approval_signer_members`.
+The signing key version is `7` (versions `1`–`6` are DESTROYED). Sign as the Workspace identity in `approval_signer_members` (`admin@tiqsapp.com` in this lab). After a teardown, run `03-adopt-retained-gcp.sh` and pin whatever ENABLED version it prints.
 
-## **Controlled remediation**
+## **Controlled Remediation**
 
 Keep the platform in dry-run mode until policy, approval, and evidence validation pass.
 
@@ -769,10 +754,9 @@ kubectl rollout status deployment/remediation-agent \
   --timeout=300s
 ```
 
-Enabling these flags does not bypass the policy, approval, replay, allowlist, mTLS, MCP, or
-RBAC controls.
+Enabling these flags does not bypass the policy, approval, replay, allowlist, mTLS, MCP, or RBAC controls.
 
-## **Observability and evidence**
+## **Observability and Evidence**
 
 Each long-running agent exposes health and Prometheus metrics, including:
 
@@ -800,16 +784,13 @@ The platform also provisions:
 - BigQuery governance evidence storage;
 - Firestore correlation, approval, and execution state.
 
-The BigQuery dataset ACL is only `evidence-admin`. List and query tables by
-impersonating that SA from a Workspace account. Do not leave
-`CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT` set when using `kubectl`.
+The BigQuery dataset ACL is only `evidence-admin`. List and query tables by impersonating that SA from a Workspace account. Do not leave `CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT` set when using `kubectl`.
 
-Optional Slack and Jira integrations use Secret Manager containers. Terraform does not
-store the secret values.
+Optional Slack and Jira integrations use Secret Manager containers. Terraform does not store the secret values.
 
-## **Windows and VS Code notes**
+## **Windows and VS Code Notes**
 
-### **GitHub Actions editor diagnostics**
+### **GitHub Actions Editor Diagnostics**
 
 The repository uses:
 
@@ -829,7 +810,7 @@ If VS Code reports that every action is unresolved, the problem is normally the 
 
 Use the GitHub Actions output channel, `actionlint`, or an actual GitHub workflow run as the authoritative validation.
 
-### **Git Bash path conversion**
+### **Git Bash Path Conversion**
 
 When a command contains Linux paths beginning with `/`, Git Bash may rewrite them into Windows paths. Use:
 
@@ -853,7 +834,7 @@ Use `bq.cmd` only for short commands such as `ls`. Do not run `bq.cmd query` fro
 
 Unset `CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT` before `kubectl`. If kubectl still runs as `evidence-admin`, delete `%USERPROFILE%\.kube\gke_gcloud_auth_plugin_cache`. If `gke-gcloud-auth-plugin` cannot write `legacy_credentials\admin@tiqsapp.com\adc.json`, use the Gmail project Owner for cluster admin.
 
-### **Public GKE endpoint**
+### **Public GKE Endpoint**
 
 If the workstation public IP changes, update the ignored `terraform/terraform.tfvars` entry under `authorized_networks`, then reapply Terraform.
 
@@ -867,10 +848,9 @@ CONFIRM_TEARDOWN=yes ./scripts/15-teardown.sh
 
 The script deletes lab namespaces, Artifact Registry packages, the evidence dataset, and Terraform-managed infrastructure. KMS key rings cannot be deleted. The next apply should run `./scripts/03-adopt-retained-gcp.sh` first. Manual stage-by-stage commands are in [`docs/RUNBOOK.md`](docs/RUNBOOK.md) section 25.
 
-## **Scope and limitations**
+## **Scope and Limitations**
 
-This is a student lab and portfolio project. It demonstrates professional architecture
-patterns but is not presented as a production-ready managed security product.
+This is a student lab and portfolio project. It demonstrates professional architecture patterns but is not presented as a production-ready managed security product.
 
 Before enterprise use, the platform would require additional work such as:
 
@@ -887,6 +867,13 @@ Before enterprise use, the platform would require additional work such as:
 
 ## **Author**
 
-| **Role** | **Name** |
-|----------|----------|
-| Author   | T.I.Q.S. |
+| **Field**          | **Value**                                     |
+| ------------------ | --------------------------------------------- |
+| **Author**         | T.I.Q.S.                                      |
+| **Group Leader**   | John Sweeney                                  |
+| **Group Name**     | jerMutants - The Brotherhood of the Wolfpack  |
+| **Cloud Platform** | AWS                                           |
+| **Lab**            | Agentic Lab                                   |
+| **Project**        | AI Governance Agentic Lab Project             |
+| **Version**        | 2.0                                           |
+| **Last Updated**   | August 22, 2026                               |

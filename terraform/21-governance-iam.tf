@@ -104,6 +104,14 @@ resource "google_pubsub_subscription_iam_member" "approval_reviewers_subscriber"
   member       = each.value
 }
 
+resource "google_pubsub_subscription_iam_member" "approval_reviewers_viewer" {
+  for_each = toset(var.approval_signer_members)
+
+  subscription = google_pubsub_subscription.approval_requests_review.name
+  role         = "roles/pubsub.viewer"
+  member       = each.value
+}
+
 resource "google_pubsub_topic_iam_member" "approval_reviewers_publisher" {
   for_each = toset(var.approval_signer_members)
 
