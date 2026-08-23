@@ -13,6 +13,11 @@ crash.*.log
 *.tfplan
 tfplan
 destroy.tfplan
+agentic.tfplan
+
+# Local scan and release artifacts
+*.sarif
+release-evidence/
 
 # Local validation traces
 *.trace

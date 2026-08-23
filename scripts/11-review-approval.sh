@@ -14,7 +14,7 @@ OUTPUT_TOPIC="${OUTPUT_TOPIC:-approval-decisions}"
 KMS_LOCATION="${KMS_LOCATION:-us-central1}"
 KMS_KEYRING="${KMS_KEYRING:-agentic-governance}"
 KMS_KEY="${KMS_KEY:-approval-signing}"
-KMS_KEY_VERSION="${KMS_KEY_VERSION:-2}"
+KMS_KEY_VERSION="${KMS_KEY_VERSION:-7}"
 APPROVAL_TTL_SECONDS="${APPROVAL_TTL_SECONDS:-600}"
 
 usage() {
@@ -40,6 +40,17 @@ log "Project:      ${PROJECT_ID}"
 log "Decision:     ${DECISION}"
 log "Reviewer:     ${REVIEWER}"
 log "Subscription: ${SUBSCRIPTION}"
+
+ACTIVE_ACCOUNT="$(gcloud config get-value account 2>/dev/null || true)"
+IMPERSONATE_ENV="${CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT:-}"
+IMPERSONATE_CFG="$(gcloud config get-value auth/impersonate_service_account 2>/dev/null || true)"
+log "gcloud account: ${ACTIVE_ACCOUNT:-unknown}"
+
+if [[ -n "${IMPERSONATE_ENV}" || ( -n "${IMPERSONATE_CFG}" && "${IMPERSONATE_CFG}" != "(unset)" ) ]]; then
+  die "gcloud is impersonating ${IMPERSONATE_ENV:-${IMPERSONATE_CFG}}. Pub/Sub pull/publish in this script must run as the Workspace signer, not evidence-admin. Run:
+  unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
+  gcloud config unset auth/impersonate_service_account"
+fi
 
 section "Pull pending request"
 gcloud pubsub subscriptions pull "${SUBSCRIPTION}" \

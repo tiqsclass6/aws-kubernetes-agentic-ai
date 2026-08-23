@@ -17,6 +17,7 @@ WIF_POOL_ID="${WIF_POOL_ID:-github-actions}"
 WIF_PROVIDER_ID="${WIF_PROVIDER_ID:-github}"
 KMS_KEYRING_ID="${KMS_KEYRING_ID:-agentic-governance}"
 KMS_KEY_ID="${KMS_KEY_ID:-approval-signing}"
+KMS_CMEK_KEY_ID="${KMS_CMEK_KEY_ID:-lab-cmek}"
 
 tf() {
   terraform -chdir="${TF_DIR}" "$@"
@@ -36,6 +37,100 @@ import_if_missing() {
     success "Imported ${address}."
   else
     warn "Could not import ${address}."
+  fi
+}
+
+ensure_kms_key_enabled() {
+  local key_id="$1"
+  local tf_address="$2"
+
+  ENSURED_KMS_VERSION=""
+
+  if ! gcloud kms keys describe "${key_id}" \
+    --keyring="${KMS_KEYRING_ID}" \
+    --location="${REGION}" \
+    --project="${PROJECT_ID}" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  import_if_missing \
+    "${tf_address}" \
+    "projects/${PROJECT_ID}/locations/${REGION}/keyRings/${KMS_KEYRING_ID}/cryptoKeys/${key_id}"
+
+  local scheduled
+  local enabled_version
+  # Do not pass --limit=1 to gcloud. It can apply before the state filter and
+  # return DESTROYED version 1, which looks like "no ENABLED version".
+  enabled_version="$(gcloud kms keys versions list \
+    --key="${key_id}" \
+    --keyring="${KMS_KEYRING_ID}" \
+    --location="${REGION}" \
+    --project="${PROJECT_ID}" \
+    --filter='state=ENABLED' \
+    --format='value(name)' 2>/dev/null | tr -d '\r' | awk 'NF { print; exit }')"
+
+  # Only restore scheduled versions when nothing is ENABLED. Restoring 8/9
+  # while 7 is live is unnecessary and Git Bash CRLF used to abort here.
+  if [[ -z "${enabled_version}" ]]; then
+    scheduled="$(gcloud kms keys versions list \
+      --key="${key_id}" \
+      --keyring="${KMS_KEYRING_ID}" \
+      --location="${REGION}" \
+      --project="${PROJECT_ID}" \
+      --filter='state=DESTROY_SCHEDULED' \
+      --format='value(name)' 2>/dev/null | tr -d '\r' || true)"
+    if [[ -n "${scheduled}" ]]; then
+      while IFS= read -r version_name; do
+        [[ -z "${version_name}" ]] && continue
+        local version_number="${version_name##*/}"
+        action "Restore DESTROY_SCHEDULED ${key_id} version ${version_number}"
+        gcloud kms keys versions restore "${version_number}" \
+          --key="${key_id}" \
+          --keyring="${KMS_KEYRING_ID}" \
+          --location="${REGION}" \
+          --project="${PROJECT_ID}" \
+          --quiet
+        success "Restored ${key_id} version ${version_number}."
+      done <<< "${scheduled}"
+    fi
+
+    enabled_version="$(gcloud kms keys versions list \
+      --key="${key_id}" \
+      --keyring="${KMS_KEYRING_ID}" \
+      --location="${REGION}" \
+      --project="${PROJECT_ID}" \
+      --filter='state=ENABLED' \
+      --format='value(name)' 2>/dev/null | tr -d '\r' | awk 'NF { print; exit }')"
+  fi
+
+  if [[ -z "${enabled_version}" ]]; then
+    action "Create an ENABLED version on ${key_id}"
+    enabled_version="$(gcloud kms keys versions create \
+      --key="${key_id}" \
+      --keyring="${KMS_KEYRING_ID}" \
+      --location="${REGION}" \
+      --project="${PROJECT_ID}" \
+      --format='value(name)')"
+    enabled_version="${enabled_version//$'\r'/}"
+    success "Created ${enabled_version}."
+  else
+    log "ENABLED ${key_id} version already present."
+  fi
+
+  ENSURED_KMS_VERSION="${enabled_version##*/}"
+  ENSURED_KMS_VERSION="${ENSURED_KMS_VERSION//$'\r'/}"
+
+  # Symmetric CMEK encrypt uses the key's primary version. Creating a version
+  # does not make it primary; DESTROYED v1 as primary still fails Secret
+  # Manager / BigQuery / GCS CMEK.
+  if [[ "${key_id}" == "${KMS_CMEK_KEY_ID}" && -n "${ENSURED_KMS_VERSION}" ]]; then
+    action "Set ${key_id} primary version to ${ENSURED_KMS_VERSION}"
+    gcloud kms keys update "${key_id}" \
+      --location="${REGION}" \
+      --keyring="${KMS_KEYRING_ID}" \
+      --project="${PROJECT_ID}" \
+      --primary-version="${ENSURED_KMS_VERSION}"
+    success "Primary ${key_id} version is ${ENSURED_KMS_VERSION}."
   fi
 }
 
@@ -100,33 +195,16 @@ if gcloud kms keyrings describe "${KMS_KEYRING_ID}" \
   import_if_missing \
     google_kms_key_ring.governance \
     "projects/${PROJECT_ID}/locations/${REGION}/keyRings/${KMS_KEYRING_ID}"
-  if gcloud kms keys describe "${KMS_KEY_ID}" \
-    --keyring="${KMS_KEYRING_ID}" \
-    --location="${REGION}" \
-    --project="${PROJECT_ID}" >/dev/null 2>&1; then
-    import_if_missing \
-      google_kms_crypto_key.approval_signing \
-      "projects/${PROJECT_ID}/locations/${REGION}/keyRings/${KMS_KEYRING_ID}/cryptoKeys/${KMS_KEY_ID}"
-    ENABLED_VERSION="$(gcloud kms keys versions list \
-      --key="${KMS_KEY_ID}" \
-      --keyring="${KMS_KEYRING_ID}" \
-      --location="${REGION}" \
-      --project="${PROJECT_ID}" \
-      --filter='state=ENABLED' \
-      --format='value(name)' \
-      --limit=1 2>/dev/null || true)"
-    if [[ -z "${ENABLED_VERSION}" ]]; then
-      action "Create an ENABLED version on ${KMS_KEY_ID}"
-      gcloud kms keys versions create \
-        --key="${KMS_KEY_ID}" \
-        --keyring="${KMS_KEYRING_ID}" \
-        --location="${REGION}" \
-        --project="${PROJECT_ID}"
-      success "Created a new KMS key version."
-    else
-      log "ENABLED KMS version already present."
-    fi
+
+  ensure_kms_key_enabled "${KMS_KEY_ID}" google_kms_crypto_key.approval_signing
+  if [[ -n "${ENSURED_KMS_VERSION}" ]]; then
+    log "Live signing version: ${ENSURED_KMS_VERSION}"
+    warn "Set approval_key_version = \"${ENSURED_KMS_VERSION}\" in terraform.tfvars."
+    warn "Set manifests/approval-agent.yaml KMS_KEY_VERSION to cryptoKeyVersions/${ENSURED_KMS_VERSION}."
+    warn "Export KMS_KEY_VERSION=${ENSURED_KMS_VERSION} for 11-review-approval.sh, or update its default."
   fi
+
+  ensure_kms_key_enabled "${KMS_CMEK_KEY_ID}" google_kms_crypto_key.lab_cmek
 else
   log "KMS key ring ${KMS_KEYRING_ID} was not found; nothing to import."
 fi

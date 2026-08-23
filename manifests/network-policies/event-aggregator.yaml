@@ -76,7 +76,7 @@ spec:
         - protocol: TCP
           port: 53
 
-    # Workload Identity endpoint for Calico-based GKE.
+    # GKE metadata / Workload Identity endpoint.
     - to:
         - ipBlock:
             cidr: 169.254.169.252/32

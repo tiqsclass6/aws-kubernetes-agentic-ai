@@ -54,7 +54,7 @@ terraform -chdir="${ROOT_DIR}/terraform" fmt -check -recursive
 success "Terraform formatting is clean."
 
 section "7/8  Initialize and validate Terraform"
-terraform -chdir="${ROOT_DIR}/terraform" init -backend=false -input=false
+terraform -chdir="${ROOT_DIR}/terraform" init -upgrade -backend=false -input=false
 terraform -chdir="${ROOT_DIR}/terraform" validate
 success "Terraform validate passed."
 

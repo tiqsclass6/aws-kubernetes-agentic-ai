@@ -90,6 +90,7 @@ kubectl apply -f "${ROOT_DIR}/manifests/reliability/"
 success "Reliability objects applied."
 
 section "13/13  Trivy and Prowler CronJobs"
+kubectl apply -f "${ROOT_DIR}/manifests/prowler-mutelist.yaml"
 kubectl apply -f "${ROOT_DIR}/manifests/trivy-cronjob.yaml"
 kubectl apply -f "${ROOT_DIR}/manifests/prowler-cronjob.yaml"
 success "Scanner CronJobs applied."

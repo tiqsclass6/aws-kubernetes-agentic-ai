@@ -6,9 +6,8 @@ resource "google_project_service" "artifactregistry" {
 }
 
 # https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/artifact_registry_repository
-# Repo for the vertex-agent image. gcr.io (used by the original walkthru.md) is
-# deprecated for new projects - build/push here instead:
-#   gcloud builds submit --tag us-central1-docker.pkg.dev/PROJECT_ID/vertex-agent-lab/vertex-agent:lab1a
+# Docker images for this lab. Build and push with scripts/04-build-images.sh
+# or the Governed Release workflow, not gcr.io.
 resource "google_artifact_registry_repository" "vertex_agent" {
   provider = google-beta
 

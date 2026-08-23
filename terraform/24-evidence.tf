@@ -11,6 +11,23 @@ resource "google_service_account" "governance_evidence_admin" {
   description  = "Organization-permitted identity used to own the BigQuery evidence dataset."
 }
 
+# Dataset OWNER can read tables but cannot run queries without jobs.create.
+resource "google_project_iam_member" "evidence_admin_job_user" {
+  project = var.project_id
+  role    = "roles/bigquery.jobUser"
+  member  = "serviceAccount:${google_service_account.governance_evidence_admin.email}"
+}
+
+# Workspace signers impersonate evidence-admin for bq ls/query. Do not grant
+# this to consumer Gmail (iam.allowedPolicyMemberDomains).
+resource "google_service_account_iam_member" "evidence_admin_token_creator" {
+  for_each = toset(var.approval_signer_members)
+
+  service_account_id = google_service_account.governance_evidence_admin.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = each.value
+}
+
 resource "google_bigquery_dataset" "governance_evidence" {
   project                     = var.project_id
   dataset_id                  = var.evidence_dataset_id
@@ -19,6 +36,10 @@ resource "google_bigquery_dataset" "governance_evidence" {
   location                    = var.region
   delete_contents_on_destroy  = true
   default_table_expiration_ms = var.evidence_retention_days * 24 * 60 * 60 * 1000
+
+  default_encryption_configuration {
+    kms_key_name = google_kms_crypto_key.lab_cmek.id
+  }
 
   labels = {
     environment = "lab"
@@ -36,7 +57,11 @@ resource "google_bigquery_dataset" "governance_evidence" {
     ignore_changes = [access]
   }
 
-  depends_on = [google_project_service.bigquery]
+  depends_on = [
+    google_project_service.bigquery,
+    google_kms_crypto_key_iam_member.lab_cmek_encrypters,
+    terraform_data.lab_cmek_primary,
+  ]
 }
 
 resource "google_logging_project_sink" "governance_evidence" {

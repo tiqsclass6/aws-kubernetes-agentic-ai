@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prowler-mutelist
+  namespace: security
+  labels:
+    app.kubernetes.io/name: prowler
+    app.kubernetes.io/component: posture-scanner
+data:
+  mutelist.yaml: |
+    # Mute leftover class-6-5-tiqs resources that this lab does not own.
+    # Prowler still enumerates the project; muted findings count as MUTED, not FAIL.
+    # Exceptions keep this lab's names in the score.
+    Mutelist:
+      Accounts:
+        "class-6-5-tiqs":
+          Checks:
+            "cloudstorage_*":
+              Regions:
+                - "*"
+              Resources:
+                - ".*"
+              Exceptions:
+                Resources:
+                  - "class-6-5-tiqs-agentic-audit-logs"
+              Description: "Mute other class buckets; keep the lab audit-log bucket"
+            "compute_*":
+              Regions:
+                - "*"
+              Resources:
+                - ".*"
+              Exceptions:
+                Resources:
+                  - "gke-vertex-agent-lab"
+                  - "vertex-agent-lab"
+              Description: "Mute default VPC, leftover VMs, and non-lab firewalls; keep this GKE cluster"
+            "kms_key_rotation_enabled":
+              Regions:
+                - "*"
+              Resources:
+                - "approval-signing"
+              Description: "GCP cannot auto-rotate ASYMMETRIC_SIGN keys"
+            "secretmanager_*":
+              Regions:
+                - "*"
+              Resources:
+                - ".*"
+              Exceptions:
+                Resources:
+                  - "security-slack-webhook-url"
+                  - "security-jira-api-token"
+              Description: "Mute other project secrets; keep lab reporting secret containers"
