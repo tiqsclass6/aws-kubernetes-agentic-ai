@@ -1,5 +1,5 @@
-google-cloud-pubsub==2.39.2
-google-cloud-firestore==2.29.0
+google-cloud-pubsub==2.40.0
+google-cloud-firestore==2.30.0
 google-cloud-kms==3.16.0
 cryptography==50.0.1
 pydantic==2.13.5
