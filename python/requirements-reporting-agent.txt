@@ -1,4 +1,4 @@
-google-cloud-pubsub==2.40.0
+google-cloud-pubsub==2.41.0
 google-cloud-secret-manager==2.30.0
 pydantic==2.13.5
 requests==2.34.2
