@@ -12,8 +12,12 @@ REPOSITORY="${REPOSITORY:-vertex-agent-lab}"
 RELEASE_TAG="${RELEASE_TAG:-v1}"
 TRIVY_VERSION="${TRIVY_VERSION:-0.76.0}"
 SYFT_VERSION="${SYFT_VERSION:-1.54.1}"
-COSIGN_OIDC_ISSUER="${COSIGN_OIDC_ISSUER:-https://token.actions.githubusercontent.com}"
-COSIGN_CERTIFICATE_IDENTITY="${COSIGN_CERTIFICATE_IDENTITY:-}"
+RELEASE_SIGNER_OIDC_ISSUER="${RELEASE_SIGNER_OIDC_ISSUER:-https://token.actions.githubusercontent.com}"
+RELEASE_SIGNER_IDENTITY="${RELEASE_SIGNER_IDENTITY:-}"
+# Cosign reads COSIGN_<FLAG> environment variables as flags. COSIGN_OIDC_ISSUER
+# becomes --oidc-issuer on `cosign sign`, which Cosign 3 rejects alongside its
+# default signing config ("cannot specify service URLs and use signing config").
+unset COSIGN_OIDC_ISSUER COSIGN_CERTIFICATE_IDENTITY
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}"
 EVIDENCE_DIR="${ROOT_DIR}/release-evidence"
 
@@ -106,24 +110,24 @@ for item in "${images[@]}"; do
     "${immutable_ref}"
   success "Signed and attested ${image_name}."
 
-  if [[ -n "${COSIGN_CERTIFICATE_IDENTITY}" ]]; then
+  if [[ -n "${RELEASE_SIGNER_IDENTITY}" ]]; then
     cosign verify \
-      --certificate-identity "${COSIGN_CERTIFICATE_IDENTITY}" \
-      --certificate-oidc-issuer "${COSIGN_OIDC_ISSUER}" \
+      --certificate-identity "${RELEASE_SIGNER_IDENTITY}" \
+      --certificate-oidc-issuer "${RELEASE_SIGNER_OIDC_ISSUER}" \
       --output json \
       "${immutable_ref}" \
       > "${EVIDENCE_DIR}/cosign/${image_name}-signature.json"
 
     cosign verify-attestation \
-      --certificate-identity "${COSIGN_CERTIFICATE_IDENTITY}" \
-      --certificate-oidc-issuer "${COSIGN_OIDC_ISSUER}" \
+      --certificate-identity "${RELEASE_SIGNER_IDENTITY}" \
+      --certificate-oidc-issuer "${RELEASE_SIGNER_OIDC_ISSUER}" \
       --type spdxjson \
       --output json \
       "${immutable_ref}" \
       > "${EVIDENCE_DIR}/cosign/${image_name}-attestation.json"
     success "Verified Cosign signature and attestation."
   else
-    warn "COSIGN_CERTIFICATE_IDENTITY is empty; post-sign verification was skipped."
+    warn "RELEASE_SIGNER_IDENTITY is empty; post-sign verification was skipped."
   fi
 
   jq \

@@ -54,7 +54,13 @@ override.tf.json
 terraform.rc
 .terraform.lock.hcl
 
+# Local AI-assistant instructions and settings
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
 # Python
+.venv/
 __pycache__/
 *.py[cod]
 *$py.class

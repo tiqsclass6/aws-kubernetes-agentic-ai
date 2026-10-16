@@ -37,7 +37,7 @@ approval_signer_members = [
 kms_keyring_id       = "agentic-governance"
 approval_key_id      = "approval-signing"
 lab_cmek_key_id      = "lab-cmek"
-approval_key_version = "7"
+approval_key_version = "12"
 
 evidence_dataset_id        = "agentic_governance_evidence"
 evidence_retention_days    = 90

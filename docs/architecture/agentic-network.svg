@@ -91,7 +91,7 @@
     <rect class="panel" x="40" y="112" width="1640" height="148" rx="16"/>
     <text class="num" x="64" y="138">01</text>
     <text class="lane" x="96" y="138">OUTSIDE THE CLUSTER - SUPPLY CHAIN</text>
-    <text class="lane-muted" x="420" y="138">GitHub Actions OIDC / WIF - signed digests only</text>
+    <text class="lane-muted" x="420" y="138">GitHub Actions OIDC / WIF - release path pins signed digests; 08-deploy uses :v1 tags</text>
     <rect class="card" x="64" y="156" width="200" height="80" rx="10"/>
     <text class="h" x="164" y="186" text-anchor="middle">Developers / GitHub</text>
     <text class="p" x="164" y="206" text-anchor="middle">
@@ -129,8 +129,8 @@
   <g id="telemetry">
     <rect class="panel" x="40" y="276" width="1640" height="168" rx="16"/>
     <text class="num" x="64" y="302">02</text>
-    <text class="lane" x="96" y="302">INGEST - SOURCES TO PUB/SUB</text>
-    <text class="lane-muted" x="360" y="302">Falco is Helm namespace falco / Trivy and Prowler run in namespace security / Logging and SCC are GCP</text>
+    <text class="lane" x="96" y="302">INGEST - SOURCES</text>
+    <text class="lane-muted" x="280" y="302">Falco (ns falco), Trivy and Prowler (ns security) POST to the Event Aggregator over HTTP / Cloud Logging, SCC, and MCP audit publish to Pub/Sub</text>
     <rect class="card" x="64" y="320" width="148" height="72" rx="10"/>
     <text class="h" x="138" y="348" text-anchor="middle">Falco</text>
     <text class="p" x="138" y="368" text-anchor="middle">runtime events</text>
@@ -145,14 +145,13 @@
     <text class="p" x="630" y="368" text-anchor="middle">GKE workloads</text>
     <rect class="card" x="720" y="320" width="148" height="72" rx="10"/>
     <text class="h" x="794" y="348" text-anchor="middle">SCC</text>
-    <text class="p" x="794" y="368" text-anchor="middle">cloud findings</text>
-    <path class="bus" d="M 138 392 V 416"/>
-    <path class="bus" d="M 302 392 V 416"/>
-    <path class="bus" d="M 466 392 V 416"/>
+    <text class="p" x="794" y="368" text-anchor="middle">optional, off by default</text>
+    <text class="mono" x="302" y="420" text-anchor="middle">HTTP POST /ingest/&lt;source&gt; - see 03, shared-services</text>
     <path class="bus" d="M 630 392 V 416"/>
     <path class="bus" d="M 794 392 V 416"/>
-    <path class="bus" d="M 138 416 H 860"/>
+    <path class="bus" d="M 630 416 H 860"/>
     <path class="flow" d="M 860 416 H 888"/>
+    <text class="mono" x="1008" y="388" text-anchor="middle">+ MCP Server audit events</text>
     <rect class="card-strong" x="888" y="396" width="240" height="40" rx="8"/>
     <text class="mono" x="1008" y="421" text-anchor="middle">raw-security-events</text>
     <path class="flow" d="M 1128 416 H 1156"/>
@@ -160,6 +159,7 @@
     <text class="h" x="1276" y="412" text-anchor="middle">Dead-letter queue</text>
     <text class="mono" x="1276" y="430" text-anchor="middle">raw-security-events-dlq</text>
     <path class="flow" d="M 1008 436 V 460"/>
+    <text class="mono" x="1018" y="455">pulled by Event Aggregator</text>
   </g>
 
   <g id="gke">
@@ -184,7 +184,7 @@
     <text class="nslabel" x="334" y="656" text-anchor="middle">NAMESPACE shared-services</text>
     <rect class="card-strong" x="128" y="668" width="412" height="52" rx="10"/>
     <text class="h" x="334" y="690" text-anchor="middle">Event Aggregator</text>
-    <text class="mono" x="334" y="708" text-anchor="middle">pulls raw-security-events / publishes security-findings</text>
+    <text class="mono" x="334" y="708" text-anchor="middle">HTTP /ingest + raw-security-events &#8594; security-findings</text>
     <path class="flow" d="M 334 736 V 760"/>
 
     <rect class="ns" x="64" y="760" width="540" height="428" rx="12"/>
@@ -258,11 +258,11 @@
     <text class="nslabel" x="932" y="828" text-anchor="middle">NAMESPACE ai-agents / EXECUTION</text>
     <rect class="card-strong" x="644" y="840" width="280" height="72" rx="10"/>
     <text class="h" x="784" y="866" text-anchor="middle">Remediation Agent</text>
-    <text class="p" x="784" y="886" text-anchor="middle">re-checks policy, then calls MCP</text>
+    <text class="p" x="784" y="886" text-anchor="middle">re-checks; calls MCP only if mode allows</text>
     <path class="flow" d="M 924 876 H 940"/>
     <rect class="card" x="940" y="840" width="280" height="72" rx="10"/>
     <text class="h" x="1080" y="866" text-anchor="middle">Reporting Agent</text>
-    <text class="mono" x="1080" y="886" text-anchor="middle">incident-reports</text>
+    <text class="mono" x="1080" y="886" text-anchor="middle">remediation-results &#8594; incident-reports</text>
     <path class="flow-exec" d="M 784 912 V 944"/>
 
     <rect class="ns" x="628" y="944" width="608" height="116" rx="12"/>
@@ -285,7 +285,7 @@
     <text class="h" x="1080" y="1136" text-anchor="middle">PostgreSQL</text>
 
     <rect class="card" x="64" y="1204" width="1172" height="28" rx="8"/>
-    <text class="p" x="650" y="1223" text-anchor="middle">Platform guardrails: NetworkPolicy / RBAC / Workload Identity / HPA / PDB / PodMonitoring / Policy Controller</text>
+    <text class="p" x="650" y="1223" text-anchor="middle">Platform guardrails: NetworkPolicy / RBAC / Workload Identity / HPA / PDB / PodMonitoring / Conftest (CI)</text>
   </g>
 
   <g id="support">

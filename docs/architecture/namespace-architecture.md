@@ -69,4 +69,4 @@ Seven application namespaces plus Helm `falco`. There is no `monitoring`, `ingre
          └─────────────────────────────┘
 ```
 
-NetworkPolicies allow kube-dns and node-local-dns in `kube-system`, the kube-dns ClusterIP `10.112.0.10/32`, and NodeLocal DNSCache `169.254.20.10/32`. Workload Identity uses `169.254.169.254` on Dataplane V2.
+NetworkPolicies allow kube-dns and node-local-dns in `kube-system`, the kube-dns ClusterIP `10.112.0.10/32`, and NodeLocal DNSCache `169.254.20.10/32`. Workload Identity needs the GKE metadata server: egress policies allow `169.254.169.254` (ports 80 and 8080) and `169.254.169.252` (ports 987 and 988) on Dataplane V2.

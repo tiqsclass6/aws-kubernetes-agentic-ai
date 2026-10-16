@@ -78,6 +78,16 @@ variable "authorized_networks" {
     display_name = string
   }))
   default = []
+
+  # The tfvars example uses 203.0.113.10/32 (an RFC 5737 documentation range).
+  # Applying it locks every workstation out of the control plane.
+  validation {
+    condition = alltrue([
+      for network in var.authorized_networks :
+      !can(regex("^(192\\.0\\.2|198\\.51\\.100|203\\.0\\.113)\\.", network.cidr_block))
+    ])
+    error_message = "authorized_networks contains an RFC 5737 documentation address (192.0.2.x, 198.51.100.x, or 203.0.113.x). Replace it with your current public IP as /32."
+  }
 }
 
 variable "master_ipv4_cidr_block" {
@@ -280,6 +290,16 @@ variable "approval_signer_members" {
   description = "IAM members allowed to review approval requests, publish decisions, and use the approval signing key. Example: [\"user:analyst@example.com\"]"
   type        = list(string)
   default     = []
+
+  # Catch the terraform.tfvars.example placeholder at plan time instead of
+  # failing five IAM bindings mid-apply with "User ... does not exist".
+  validation {
+    condition = alltrue([
+      for member in var.approval_signer_members :
+      !can(regex("@example\\.(com|org|net)$", member))
+    ])
+    error_message = "approval_signer_members still contains an example.com placeholder. Set it to the real Workspace signer, for example \"user:you@your-domain\"."
+  }
 }
 
 variable "kms_keyring_id" {
@@ -303,7 +323,7 @@ variable "lab_cmek_key_id" {
 variable "approval_key_version" {
   description = "Enabled Cloud KMS key version used by the approval review script and approval agent"
   type        = string
-  default     = "7"
+  default     = "12"
 }
 
 variable "evidence_dataset_id" {

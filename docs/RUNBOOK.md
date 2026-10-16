@@ -37,7 +37,7 @@ GKE datapath:        Dataplane V2 (not Calico)
 Node machine type:   e2-standard-4
 Artifact Registry:   vertex-agent-lab
 Image tag:           v1
-Approval KMS version: 7
+Approval KMS version: 12
 Terraform backend:   gs://tiqs-kubernetes/agentic/terraform/state
 ```
 
@@ -78,7 +78,7 @@ Terraform >= 1.16.0 (CI pins 1.16.6)
 Google Cloud CLI
 kubectl
 Docker with Buildx
-Python 3.14 (CI and images; 3.15 lacks wheels for psycopg2-binary and PyYAML pins)
+Python 3.14 (CI and images; the pinned pydantic-core, PyYAML, and psycopg2-binary have no 3.15 wheels)
 pytest and PyYAML (python/requirements-test.txt)
 cryptography (python/requirements-approval-agent.txt; needed by unit tests)
 Bash
@@ -139,12 +139,12 @@ approval_signer_members = [
   "user:YOUR_WORKSPACE_ACCOUNT",
 ]
 
-approval_key_version = "7"
+approval_key_version = "12"
 ```
 
-`approval_signer_members` must be an org-permitted Workspace identity, not a consumer Gmail account. Later sections refer to it as `APPROVER_EMAIL`; export it in your shell instead of writing the address into tracked files. Versions `1`–`6` are DESTROYED. The live signing version from the 22 Aug 2026 e2e is `7`. If `03-adopt-retained-gcp.sh` prints a different ENABLED version, pin tfvars, `manifests/approval-agent.yaml`, and `scripts/11-review-approval.sh` to that version before signing.
+`approval_signer_members` must be an org-permitted Workspace identity, not a consumer Gmail account. Later sections refer to it as `APPROVER_EMAIL`; export it in your shell instead of writing the address into tracked files. Versions `1`–`11` are DESTROYED; the ENABLED version as of 16 Oct 2026 is `12`. A teardown can leave no ENABLED version, and `03-adopt-retained-gcp.sh` then creates a new one, so trust the version it prints over this number. If `03-adopt-retained-gcp.sh` prints a different ENABLED version, pin tfvars, `manifests/approval-agent.yaml`, and `scripts/11-review-approval.sh` to that version before signing.
 
-Copying `terraform/terraform.tfvars.example` already targets `us-central1-c` and KMS version `7`. Still replace the documentation CIDR and signer email.
+Copying `terraform/terraform.tfvars.example` already targets `us-central1-c` and KMS version `12`. Still replace the documentation CIDR and signer email.
 
 Do not commit:
 
@@ -175,10 +175,9 @@ The local `terraform.tfvars` will appear after you create it; it must remain ign
 Do not run `01` through `15` as a numbered loop. Several scripts are nested or conditional. Canonical path to complete the lab:
 
 ```text
-1.  Copy terraform.tfvars and set zone, CIDR, Workspace signer, KMS version 7
+1.  Copy terraform.tfvars and set zone, CIDR, Workspace signer, KMS version 12 (or what 03 prints)
 
-2.  python -m pip install -r python/requirements-test.txt \
-       -r python/requirements-approval-agent.txt
+2.  Create and activate the Python 3.14 virtual environment (below)
 
 3.  ./scripts/01-validate.sh          (calls 02-conftest-test.sh)
 
@@ -229,7 +228,7 @@ Script catalog:
 08-deploy.sh                   canonical platform apply
 09-test-governance.sh          REQUIRE_APPROVAL smoke test
 10-test-pipeline.sh            end-to-end findings → incident report
-11-review-approval.sh          sign approve/deny with KMS version 7
+11-review-approval.sh          sign approve/deny with KMS version 12
 12-smoke-test-metrics.sh       port-forward /metrics on observer-agent
 13-release-images.sh           SBOM, Trivy, Cosign, image-lock.json
 14-deploy-release-images.sh    set Deployments to lock-file digests
@@ -242,12 +241,22 @@ Make scripts executable:
 chmod +x scripts/*.sh
 ```
 
-Install the Python packages that `01-validate.sh` needs (pytest, PyYAML, cryptography):
+The scripts call `python`, so it must resolve to Python 3.14. If your default `python` is newer (3.15), the pinned `pydantic-core` has no wheel for it and the install fails. Create a 3.14 virtual environment once, then activate it in every shell you run the scripts from:
+
+```bash
+py -3.14 -m venv .venv            # Windows; on Linux/macOS: python3.14 -m venv .venv
+source .venv/Scripts/activate     # Git Bash; on Linux/macOS: source .venv/bin/activate
+python --version                  # must print Python 3.14.x
+```
+
+Install the Python packages that `01-validate.sh` needs (pytest, PyYAML, cryptography, and the agent dependencies the tests import):
 
 ```bash
 python -m pip install -r python/requirements-test.txt \
   -r python/requirements-approval-agent.txt
 ```
+
+`.venv/` is gitignored.
 
 Run the complete validation suite:
 
@@ -306,7 +315,7 @@ terraform -chdir=terraform fmt -recursive
 terraform -chdir=terraform validate
 ```
 
-Check whether this project already has leftovers from a previous lab. `03-adopt-retained-gcp.sh` requires `.terraform/` from `init`. It imports or undeletes the GitHub WIF pool, the KMS key ring and keys, restores a `DESTROY_SCHEDULED` CMEK version only when none is ENABLED, sets that version primary, and deletes a node pool stuck in `ERROR`. It does **not** import the GKE cluster, VPC, Pub/Sub, or other stack resources. If `approval-signing` already has an ENABLED version, pin that (last e2e: `7`). Do not create extra signing versions.
+Check whether this project already has leftovers from a previous lab. `03-adopt-retained-gcp.sh` requires `.terraform/` from `init`. It imports or undeletes the GitHub WIF pool, the KMS key ring and keys, restores a `DESTROY_SCHEDULED` CMEK version only when none is ENABLED, sets that version primary, and deletes a node pool stuck in `ERROR`. It does **not** import the GKE cluster, VPC, Pub/Sub, or other stack resources. If `approval-signing` already has an ENABLED version, pin that (currently `12`). Do not create extra signing versions.
 
 ```bash
 terraform -chdir=terraform state list
@@ -815,7 +824,7 @@ Subscriptions:
 ```bash
 gcloud pubsub subscriptions list \
   --project=class-6-5-tiqs \
-  --filter='name:(observer-agent-sub correlation-agent-sub ir-analyst-agent-sub governance-agent-sub approval-agent-sub remediation-agent-sub reporting-agent-sub approval-requests-review-sub governance-decisions-debug-sub governance-audit-debug-sub incident-reports-debug-sub agent-events-dlq-sub)'
+  --filter='name:(observer-agent-sub correlation-agent-sub ir-analyst-agent-sub governance-agent-sub approval-agent-sub remediation-governance-sub reporting-agent-sub approval-requests-review-sub governance-decisions-debug-sub governance-audit-debug-sub incident-reports-debug-sub agent-events-dlq-sub)'
 ```
 
 Inspect dead-letter messages:
@@ -968,11 +977,11 @@ Default signing configuration:
 Location:       us-central1
 Key ring:       agentic-governance
 Key:            approval-signing
-Key version:    7
+Key version:    12
 Decision TTL:   600 seconds
 ```
 
-`scripts/11-review-approval.sh` and `manifests/approval-agent.yaml` default to version `7`. Versions `1`–`6` are DESTROYED on this project and cannot sign. If `7` is `DESTROY_SCHEDULED`, restore and enable it before reviewing.
+`scripts/11-review-approval.sh` and `manifests/approval-agent.yaml` default to version `12`. Versions `1`–`11` are DESTROYED on this project and cannot sign. If `12` is `DESTROY_SCHEDULED`, restore and enable it before reviewing.
 
 Override with environment variables when necessary:
 
@@ -981,7 +990,7 @@ PROJECT_ID=class-6-5-tiqs \
 KMS_LOCATION=us-central1 \
 KMS_KEYRING=agentic-governance \
 KMS_KEY=approval-signing \
-KMS_KEY_VERSION=7 \
+KMS_KEY_VERSION=12 \
 APPROVAL_TTL_SECONDS=600 \
 ./scripts/11-review-approval.sh \
   approve \
@@ -1408,7 +1417,7 @@ These are leftovers from a previous destroy or a partial apply. They are not ran
 | **KMS key ring or crypto key 409**                            | Key rings/keys cannot be fully deleted                                                      | Same script imports `agentic-governance` / `approval-signing` / `lab-cmek`                                           |
 | **Secret / BQ / GCS CMEK `DESTROY_SCHEDULED` or `DESTROYED`** | Teardown schedules the CMEK primary (last e2e: `lab-cmek` v5); encrypt uses the key primary | Same script enables or creates a version and sets it primary. DESTROYED versions cannot be restored.                 |
 | **BigQuery `allowedPolicyMemberDomains`**                     | Default dataset ACL includes consumer Google accounts                                       | Dataset OWNER is only `evidence-admin`; impersonate that SA from a Workspace user                                    |
-| **KMS key version DESTROYED**                                 | Destroyed versions cannot sign                                                              | Pin the ENABLED signing version (last e2e: `7`) in tfvars, the approval agent ConfigMap, and `11-review-approval.sh` |
+| **KMS key version DESTROYED**                                 | Destroyed versions cannot sign                                                              | Pin the ENABLED signing version (currently `12`) in tfvars, the approval agent ConfigMap, and `11-review-approval.sh` |
 | **Node pool `ERROR`**                                         | Failed bootstrap or datapath mismatch                                                       | Cluster uses Dataplane V2; script deletes the ERROR pool                                                             |
 
 ```bash
@@ -1556,6 +1565,22 @@ gcloud pubsub subscriptions pull agent-events-dlq-sub \
 
 Check the consumer Deployment logs and its subscription IAM role.
 
+### **Pipeline stalls at the IR Analyst**
+
+`10-test-pipeline.sh` times out and `analyzed-incidents` stays empty. Check the agent's model configuration and logs:
+
+```bash
+kubectl get configmap ir-analyst-agent-config -n ai-agents \
+  -o jsonpath='{.data.MODEL}{" @ "}{.data.LOCATION}{"\n"}'
+kubectl logs -n ai-agents deployment/ir-analyst-agent --tail=200
+```
+
+- **`404` / model `NOT_FOUND`.** The model was retired or isn't served in that location. `gemini-2.5-flash` is retired on Vertex AI from 2026-10-20. `gemini-3.8-flash` is served only from `global` (or the `us`/`eu` multi-regions), not `us-central1`. Update `MODEL` and `LOCATION` together in `manifests/ir-analyst-agent.yaml`, apply it, then `kubectl rollout restart deployment/ir-analyst-agent -n ai-agents`.
+- **`Vertex AI returned an empty response (finish_reason=FinishReason.MAX_TOKENS)`.** The output budget ran out before the JSON completed. Raise it by adding `MAX_OUTPUT_TOKENS` (default `8192`) to the Deployment's environment. Don't put it in the ConfigMap: Trivy KSV-0109 flags ConfigMap keys containing "TOKEN".
+- **`PERMISSION_DENIED` on `aiplatform`.** `vertex-gke-agent@` needs `roles/aiplatform.user` (Terraform `09-ir-analyst-agent-iam.tf`).
+
+Messages that keep failing land in `agent-events-dlq-sub` (above).
+
 ### **Governance Agent cannot evaluate policy**
 
 ```bash
@@ -1590,7 +1615,7 @@ approval request ID
 decision expiry
 reviewer IAM access
 canonical JSON serialization
-KMS key version is ENABLED (last e2e used version 7; versions 1–6 are DESTROYED)
+KMS key version is ENABLED (currently version 12; versions 1–11 are DESTROYED)
 ```
 
 Inspect:
@@ -1856,7 +1881,7 @@ Some APIs and retained audit data may intentionally remain depending on Terrafor
 ## **26. Completion Checklist**
 
 ```text
-[ ] Local tfvars created and ignored (zone us-central1-c, KMS version 7)
+[ ] Local tfvars created and ignored (zone us-central1-c, KMS version 12)
 [ ] Administrator CIDR updated
 [ ] Approval signer is a Workspace user in the allowed org domain
 [ ] Python test deps installed (`requirements-test.txt` + `requirements-approval-agent.txt`)
@@ -1874,7 +1899,7 @@ Some APIs and retained audit data may intentionally remain depending on Terrafor
 [ ] Trivy and Prowler CronJobs present and a manual Job succeeded
 [ ] Governance smoke test returned REQUIRE_APPROVAL
 [ ] End-to-end pipeline test produced an incident report
-[ ] Cloud KMS approval signed with key version 7 as the Workspace signer
+[ ] Cloud KMS approval signed with key version 12 as the Workspace signer
 [ ] BigQuery evidence listed via evidence-admin impersonation (table name from `bq ls`)
 [ ] Automated execution remains disabled or was explicitly approved
 [ ] GitHub CI passed

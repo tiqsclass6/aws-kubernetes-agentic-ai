@@ -156,7 +156,7 @@
     <text class="p" x="764" y="297" text-anchor="middle">Scan job: Trivy SARIF</text>
     <text class="mono" x="764" y="313" text-anchor="middle">HIGH / CRITICAL findings</text>
     <rect class="card" x="904" y="280" width="548" height="44" rx="8"/>
-    <text class="p" x="1178" y="297" text-anchor="middle">Deploy uses digests, not tags</text>
+    <text class="p" x="1178" y="297" text-anchor="middle">Release deploy (14) pins digests; 08-deploy uses :v1 tags</text>
     <text class="mono" x="1178" y="313" text-anchor="middle">release-evidence/image-lock.json</text>
   </g>
 <!--02 Detect-->
@@ -164,7 +164,7 @@
     <rect class="panel" x="40" y="360" width="1640" height="188" rx="16"/>
     <text class="num" x="64" y="386">02</text>
     <text class="lane" x="96" y="386">DETECT</text>
-    <text class="lane-muted" x="176" y="386">namespace security + GCP telemetry into one ingest topic</text>
+    <text class="lane-muted" x="176" y="386">Falco, Trivy, Prowler POST to the aggregator over HTTP / Cloud Logging, SCC, and MCP audit publish to raw-security-events</text>
     <rect class="card" x="64" y="408" width="136" height="64" rx="10"/>
     <text class="h" x="132" y="434" text-anchor="middle">Falco</text>
     <text class="p" x="132" y="452" text-anchor="middle">runtime events</text>
@@ -179,14 +179,17 @@
     <text class="p" x="588" y="452" text-anchor="middle">GKE workloads</text>
     <rect class="card" x="672" y="408" width="136" height="64" rx="10"/>
     <text class="h" x="740" y="434" text-anchor="middle">SCC</text>
-    <text class="p" x="740" y="452" text-anchor="middle">cloud findings</text>
-    <path class="bus" d="M 132 472 V 496"/>
-    <path class="bus" d="M 284 472 V 496"/>
-    <path class="bus" d="M 436 472 V 496"/>
+    <text class="p" x="740" y="452" text-anchor="middle">optional, off</text>
+    <path class="bus" d="M 132 472 V 532"/>
+    <path class="bus" d="M 284 472 V 532"/>
+    <path class="bus" d="M 436 472 V 532"/>
+    <path class="flow" d="M 132 532 H 1096"/>
+    <text class="mono" x="452" y="526">HTTP POST /ingest/&lt;source&gt;</text>
     <path class="bus" d="M 588 472 V 496"/>
     <path class="bus" d="M 740 472 V 496"/>
-    <path class="bus" d="M 132 496 H 820"/>
+    <path class="bus" d="M 588 496 H 820"/>
     <path class="flow" d="M 820 496 H 848"/>
+    <text class="mono" x="958" y="466" text-anchor="middle">+ MCP Server audit events</text>
     <rect class="card-strong" x="848" y="476" width="220" height="40" rx="8"/>
     <text class="mono" x="958" y="501" text-anchor="middle">raw-security-events</text>
     <path class="flow" d="M 1068 496 H 1096"/>
@@ -270,20 +273,20 @@
     <path class="join-gov" d="M 314 956 H 332 V 972"/>
     <path class="flow-gov" d="M 332 972 H 356"/>
     <rect class="card" x="356" y="820" width="200" height="48" rx="10"/>
-    <text class="h" x="456" y="838" text-anchor="middle">REQUIRE APPROVAL</text>
+    <text class="h" x="456" y="838" text-anchor="middle">REQUIRE_APPROVAL only</text>
     <text class="mono-amber" x="456" y="854" text-anchor="middle">approval-requests</text>
     <rect class="card" x="356" y="884" width="200" height="48" rx="10"/>
-    <text class="h" x="456" y="902" text-anchor="middle">PERMIT</text>
+    <text class="h" x="456" y="902" text-anchor="middle">every decision</text>
     <text class="mono" x="456" y="918" text-anchor="middle">governance-decisions</text>
     <rect class="card" x="356" y="948" width="200" height="48" rx="10"/>
-    <text class="h" x="456" y="966" text-anchor="middle">DENY / NO_ACTION</text>
+    <text class="h" x="456" y="966" text-anchor="middle">every decision (audit)</text>
     <text class="mono-purple" x="456" y="982" text-anchor="middle">governance-audit</text>
     <path class="flow-human" d="M 556 844 H 588"/>
     <rect class="card" x="588" y="816" width="196" height="56" rx="10"/>
     <text class="h" x="686" y="836" text-anchor="middle">Human reviewer</text>
     <text class="p" x="686" y="852" text-anchor="middle">
-      <tspan x="686" dy="0">critical needs a signed</tspan>
-      <tspan x="686" dy="12">approval from review-sub</tspan>
+      <tspan x="686" dy="0">signs each pending</tspan>
+      <tspan x="686" dy="12">request from review-sub</tspan>
     </text>
     <path class="flow-human" d="M 784 844 H 816"/>
     <rect class="card" x="816" y="816" width="176" height="56" rx="10"/>
@@ -311,7 +314,7 @@
     <rect class="panel" x="40" y="1044" width="1640" height="148" rx="16"/>
     <text class="num" x="64" y="1070">05</text>
     <text class="lane" x="96" y="1070">EXECUTE</text>
-    <text class="lane-muted" x="188" y="1070">MCP is the only path to Kubernetes / mTLS / EXECUTION_MODE=controlled</text>
+    <text class="lane-muted" x="188" y="1070">MCP is the only path to Kubernetes / mTLS / runs only if EXECUTION_MODE allows (default: disabled)</text>
     <rect class="card-strong" x="64" y="1092" width="220" height="80" rx="10"/>
     <text class="ns" x="174" y="1112" text-anchor="middle">ai-agents</text>
     <text class="h" x="174" y="1132" text-anchor="middle">Remediation Agent</text>
@@ -343,8 +346,11 @@
     <path class="flow" d="M 1084 1132 H 1112"/>
     <rect class="card" x="1112" y="1092" width="528" height="80" rx="10"/>
     <text class="h" x="1376" y="1114" text-anchor="middle">Reporting Agent</text>
-    <text class="p" x="1376" y="1132" text-anchor="middle">Slack / Jira via Secret Manager</text>
+    <text class="p" x="1376" y="1132" text-anchor="middle">every outcome; Slack / Jira optional (Secret Manager)</text>
     <text class="mono" x="1376" y="1150" text-anchor="middle">remediation-results to incident-reports</text>
+    <path class="join" d="M 174 1172 V 1182 H 560"/>
+    <text class="mono" x="572" y="1186">DENY / NO_ACTION / awaiting approval: result only, no MCP call</text>
+    <path class="flow-soft" d="M 960 1182 H 1376 V 1174"/>
   </g>
 <!--06 Evidence + guardrails-->
   <g id="evidence">
@@ -371,6 +377,6 @@
     <rect class="card" x="1156" y="1250" width="56" height="36" rx="8"/>
     <text class="p" x="1184" y="1273" text-anchor="middle">PDB</text>
     <rect class="card" x="1224" y="1250" width="416" height="36" rx="8"/>
-    <text class="p" x="1432" y="1273" text-anchor="middle">Policy Controller / Gatekeeper</text>
+    <text class="p" x="1432" y="1273" text-anchor="middle">Conftest manifest policy (CI)</text>
   </g>
 </svg>

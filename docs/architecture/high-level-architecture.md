@@ -11,7 +11,7 @@ Live lab stack. GitHub Actions and Workload Identity Federation feed Artifact Re
                                    ▼
                     ┌──────────────────────────┐
                     │ Artifact Registry        │
-                    │ signed v1 digests        │
+                    │ v1 tags / signed digests │
                     └─────────┬────────────────┘
                               │
                               ▼
@@ -47,7 +47,7 @@ Live lab stack. GitHub Actions and Workload Identity Federation feed Artifact Re
               │                                │
               │ - Cloud Logging                │
               │ - Pub/Sub + DLQ                │
-              │ - Security Command Center      │
+              │ - SCC notifications (optional) │
               │ - Managed Prometheus           │
               │ - BigQuery evidence dataset    │
               └───────────────┬────────────────┘
@@ -83,13 +83,13 @@ Live lab stack. GitHub Actions and Workload Identity Federation feed Artifact Re
            │ └──────────────────────────────────┘ │
            │                                      │
            │ ┌──────────────────────────────────┐ │
-           │ │ Approval Agent + Cloud KMS v2    │ │
+           │ │ Approval Agent + Cloud KMS       │ │
            │ │ Verifies signed human decisions  │ │
            │ └──────────────────────────────────┘ │
            │                                      │
            │ ┌──────────────────────────────────┐ │
            │ │ Remediation Agent                │ │
-           │ │ Re-checks policy, calls MCP      │ │
+           │ │ Re-checks; MCP if mode allows    │ │
            │ └──────────────────────────────────┘ │
            │                                      │
            │ ┌──────────────────────────────────┐ │

@@ -62,13 +62,12 @@ This architecture shows how an organization can:
 ## **Architecture**
 
 ```text
-Falco / Trivy / Prowler / Cloud Logging / Security Command Center
-  |
-  v
-raw-security-events
-  |
-  v
-Event Aggregator
+Falco (falco)  Trivy + Prowler CronJobs (security)     Cloud Logging sink / SCC (optional) / MCP audit events
+       |                    |                                        |
+       |  HTTP POST /ingest/<source>                                 v
+       |                    |                              raw-security-events --(retries)--> raw-security-events-dlq
+       v                    v                                        |
+Event Aggregator (shared-services) <---------------------------------+
   |
   v
 security-findings
@@ -86,57 +85,59 @@ Correlation Agent + Firestore
 correlated-incidents
   |
   v
-IR Analyst Agent + Vertex AI / Gemini
+IR Analyst Agent + Vertex AI / Gemini (recommends only)
   |
   v
 analyzed-incidents
   |
   v
-Governance Agent + OPA
+Governance Agent + OPA sidecar
   |
-  +--> DENY / NO_ACTION
+  +--> governance-audit                      (every decision)
   |
-  +--> PERMIT
-  |
-  +--> REQUIRE_APPROVAL
-          |
-          v
-      approval-requests
-          |
-          v
-      Human reviewer + Cloud KMS signature
-          |
-          v
-      approval-decisions
-          |
-          v
-      Approval Agent
-          |
-          v
-governance-decisions
+  +--> approval-requests + Firestore record  (REQUIRE_APPROVAL only)
+  |        |
+  |        v
+  |    Human reviewer signs with Cloud KMS   (scripts/11-review-approval.sh)
+  |        |
+  |        v
+  |    approval-decisions
+  |        |
+  |        v
+  |    Approval Agent: verifies signature, request hash, expiry
+  |        |
+  v        v  new decision, decision_source = kms-human-approval
+governance-decisions  (every decision: PERMIT / DENY / NO_ACTION / REQUIRE_APPROVAL)
   |
   v
 Remediation Agent
   |
-  v
-MCP Gateway over mTLS
+  +--> DENY / NO_ACTION / REQUIRE_APPROVAL: result only, no MCP call
   |
-  v
-MCP Server with namespace-scoped Kubernetes RBAC
-  |
-  v
-approved Kubernetes action in app01
-  |
-  v
-remediation-results
+  +--> PERMIT, and EXECUTION_MODE allows it (default: disabled)
+  |      |
+  |      v
+  |    MCP Gateway (nginx, client mTLS)
+  |      |
+  |      v
+  |    MCP Server: get_pods / get_logs / restart_deployment, app01 RBAC
+  |      |
+  |      v
+  |    allowlisted action on app01/broken-app
+  |      |
+  v      v
+remediation-results  (every outcome)
   |
   v
 Reporting Agent
   |
   +--> incident-reports
   +--> optional Slack / Jira
-  +--> BigQuery governance evidence
+
+Governance, approval, remediation, and MCP Server logs --> Cloud Logging sink --> BigQuery evidence
 ```
+
+Full detail, including the `EXECUTION_MODE` options, is in [`docs/architecture/architecture.md`](docs/architecture/architecture.md).
 
 - AI workflow diagram:
     ![Agentic AI Workflow](docs/architecture/agentic-ai-workflow.svg)
@@ -489,14 +490,21 @@ Replace the documentation values in `terraform/terraform.tfvars`:
 zone = "us-central1-c"
 authorized_networks CIDR = YOUR_CURRENT_PUBLIC_IP/32
 approval_signer_members = ["user:YOUR_WORKSPACE_ACCOUNT"]
-approval_key_version = "7"
+approval_key_version = "12"
 ```
 
 The approval signer must be a Google Workspace identity in the organization's allowed domain. Consumer Gmail accounts cannot own the BigQuery evidence dataset or impersonate `evidence-admin` (`iam.allowedPolicyMemberDomains`). Do not commit `terraform.tfvars`.
 
 ### **3. Validate the Repository**
 
+The scripts call `python`, which must be Python 3.14. The pinned dependencies have no wheels for 3.15 yet.
+
 ```bash
+py -3.14 -m venv .venv            # Linux/macOS: python3.14 -m venv .venv
+source .venv/Scripts/activate     # Linux/macOS: source .venv/bin/activate
+python -m pip install -r python/requirements-test.txt \
+  -r python/requirements-approval-agent.txt
+
 chmod +x scripts/*.sh
 ./scripts/01-validate.sh
 ```
@@ -511,7 +519,7 @@ terraform -chdir=terraform plan -out=agentic.tfplan
 terraform -chdir=terraform apply agentic.tfplan
 ```
 
-After a teardown, run `./scripts/03-adopt-retained-gcp.sh` before plan (KMS rings and the WIF pool survive destroy). If apply 409s on those names, or the node pool is in `ERROR`, adopt and plan again. Default node type is `e2-standard-4` in `us-central1-c`. Pin `approval_key_version` to the ENABLED signing version adopt prints (last e2e: `7`).
+After a teardown, run `./scripts/03-adopt-retained-gcp.sh` before plan (KMS rings and the WIF pool survive destroy). If apply 409s on those names, or the node pool is in `ERROR`, adopt and plan again. Default node type is `e2-standard-4` in `us-central1-c`. Pin `approval_key_version` to the ENABLED signing version adopt prints (currently `12`).
 
 ### **5. Obtain Cluster Credentials**
 
@@ -637,7 +645,7 @@ The `production` GitHub environment should require reviewer approval before depl
 ./scripts/01-validate.sh
 ```
 
-This requires Python, pytest, Terraform, OPA, and Conftest.
+This requires the activated Python 3.14 virtual environment from Quick Start step 3, plus Terraform, OPA, and Conftest.
 
 ### **Governance Smoke Test**
 
@@ -718,7 +726,7 @@ The script:
 - publishes the signed decision;
 - acknowledges the original request only after publication succeeds.
 
-The signing key version is `7` (versions `1`–`6` are DESTROYED). Sign as the Workspace identity in `approval_signer_members` (export it as `APPROVER_EMAIL` before running these commands). After a teardown, run `03-adopt-retained-gcp.sh` and pin whatever ENABLED version it prints.
+The signing key version is `12` (versions `1`–`11` are DESTROYED). Sign as the Workspace identity in `approval_signer_members` (export it as `APPROVER_EMAIL` before running these commands). After a teardown, run `03-adopt-retained-gcp.sh` and pin whatever ENABLED version it prints.
 
 ## **Controlled Remediation**
 

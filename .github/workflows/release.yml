@@ -31,8 +31,8 @@ env:
   RELEASE_TAG: ${{ inputs.tag }}
   TRIVY_VERSION: "0.76.0"
   SYFT_VERSION: "1.54.1"
-  COSIGN_OIDC_ISSUER: https://token.actions.githubusercontent.com
-  COSIGN_CERTIFICATE_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}
+  RELEASE_SIGNER_OIDC_ISSUER: https://token.actions.githubusercontent.com
+  RELEASE_SIGNER_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}
 
 jobs:
   release:
