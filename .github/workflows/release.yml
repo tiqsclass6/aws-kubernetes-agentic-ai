@@ -35,10 +35,11 @@ env:
   RELEASE_SIGNER_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}
 
 jobs:
+  # Build, scan, sign, and attest. Runs without an environment so build-only
+  # releases (deploy=false) never wait for approval.
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 75
-    environment: production
 
     steps:
       - name: Check out repository
@@ -79,13 +80,50 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  # Roll the signed digests out to GKE. The production environment requires a
+  # reviewer, so this job pauses for approval after the release job succeeds.
+  deploy:
+    needs: release
+    if: ${{ inputs.deploy }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download release evidence
+        uses: actions/download-artifact@v8
+        with:
+          name: release-${{ inputs.tag }}
+          path: release-evidence/
+
+      - name: Verify image lock checksum
+        run: |
+          expected="$(cut -d ' ' -f1 release-evidence/image-lock.sha256)"
+          echo "${expected}  release-evidence/image-lock.json" | sha256sum --check -
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_RELEASE_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          install_components: gke-gcloud-auth-plugin
+
       - name: Get GKE credentials
-        if: ${{ inputs.deploy }}
         run: |
           gcloud container clusters get-credentials "${CLUSTER_NAME}" \
             --location "${CLUSTER_LOCATION}" \
             --project "${PROJECT_ID}"
 
       - name: Deploy immutable image digests
-        if: ${{ inputs.deploy }}
         run: bash scripts/14-deploy-release-images.sh release-evidence/image-lock.json

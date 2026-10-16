@@ -470,8 +470,12 @@ Active workflow files (GitHub-hosted only):
 .github/workflows/release.yml
 ```
 
-The release workflow is manually dispatched and defaults to build-only.
-Set `deploy=true` only when the release evidence and target environment have been reviewed.
+The release workflow is manually dispatched and defaults to build-only. It has two jobs:
+
+- `release` builds, scans, signs, and attests the images and uploads the `release-<tag>` evidence artifact. It has no environment, so build-only runs never wait for approval.
+- `deploy` runs only with `deploy=true`, after `release` succeeds. It uses the `production` environment, so it pauses until a required reviewer approves it in the Actions UI. It then downloads the evidence, verifies `image-lock.json` against `image-lock.sha256`, and runs `14-deploy-release-images.sh`.
+
+Set `deploy=true` only when the release evidence and target environment have been reviewed. GitHub-hosted runner IPs are not in `authorized_networks`, so the `deploy` job cannot reach the control plane unless that is changed; until then, download the artifact and run `14` from an authorized workstation (`gh run download RUN_ID -n release-v1 -D release-evidence`).
 
 ### **VS Code resolver warning**
 

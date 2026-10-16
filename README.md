@@ -623,7 +623,7 @@ The release workflow:
 7. verifies signature identity and OIDC issuer;
 8. writes `release-evidence/image-lock.json`;
 9. uploads release evidence;
-10. optionally updates GKE workloads by immutable digest.
+10. optionally (`deploy=true`) runs a separate `deploy` job that waits for `production` approval, verifies the image lock checksum, and updates GKE workloads by immutable digest.
 
 Required GitHub repository variables:
 
@@ -635,7 +635,7 @@ GKE_CLUSTER_NAME
 GKE_CLUSTER_LOCATION
 ```
 
-The `production` GitHub environment should require reviewer approval before deployment.
+Only the `deploy` job uses the `production` GitHub environment, which requires reviewer approval, so build-only releases run without waiting.
 
 ## **Validation**
 
