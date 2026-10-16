@@ -835,7 +835,7 @@ Do not type placeholders in angle brackets (`<id>`, `<terraform output>`). Git B
 The Unix `bq` wrapper looks for `python3.14`. Pin a real interpreter:
 
 ```bash
-export CLOUDSDK_PYTHON="/c/Python312/python.exe"
+export CLOUDSDK_PYTHON="/c/Python314/python.exe"
 ```
 
 Use `bq.cmd` only for short commands such as `ls`. Do not run `bq.cmd query` from Git Bash; it splits on `C:\Program Files`. Keep SQL on one line with `bq query`.

@@ -110,7 +110,7 @@ gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 ```
 
 On Windows, verify that `gcloud`, `kubectl`, `docker`, `python`, and `openssl` are available from the same shell used for the scripts. Git Bash plus the Cloud SDK has
-several traps documented in [Windows Git Bash](#windows-git-bash). Pin `CLOUDSDK_PYTHON` to a real interpreter such as `/c/Python312/python.exe` if the Unix
+several traps documented in [Windows Git Bash](#windows-git-bash). Pin `CLOUDSDK_PYTHON` to a real interpreter such as `/c/Python314/python.exe` if the Unix
 `bq` wrapper fails with `python3.14: command not found`.
 
 ---
@@ -142,7 +142,7 @@ approval_signer_members = [
 approval_key_version = "12"
 ```
 
-`approval_signer_members` must be an org-permitted Workspace identity, not a consumer Gmail account. Later sections refer to it as `APPROVER_EMAIL`; export it in your shell instead of writing the address into tracked files. Versions `1`–`11` are DESTROYED; the ENABLED version as of 16 Oct 2026 is `12`. A teardown can leave no ENABLED version, and `03-adopt-retained-gcp.sh` then creates a new one, so trust the version it prints over this number. If `03-adopt-retained-gcp.sh` prints a different ENABLED version, pin tfvars, `manifests/approval-agent.yaml`, and `scripts/11-review-approval.sh` to that version before signing.
+`approval_signer_members` must be an org-permitted Workspace identity, not a consumer Gmail account. Later sections refer to it as `APPROVER_EMAIL`; export it in your shell instead of writing the address into tracked files. Versions `1`–`11` are DESTROYED; the ENABLED version as of 16 Oct 2026 is `12`. `15-teardown.sh` now retains the KMS keys, so this version survives teardown. If a version is ever destroyed (an older teardown, or `DESTROY_KMS_KEYS=yes`), `03-adopt-retained-gcp.sh` creates a new one; trust the version it prints over this number. If `03-adopt-retained-gcp.sh` prints a different ENABLED version, pin tfvars, `manifests/approval-agent.yaml`, and `scripts/11-review-approval.sh` to that version before signing.
 
 Copying `terraform/terraform.tfvars.example` already targets `us-central1-c` and KMS version `12`. Still replace the documentation CIDR and signer email.
 
@@ -1297,7 +1297,7 @@ gcloud auth print-access-token \
 On Git Bash, pin Python and impersonate. Use the Unix `bq` wrapper for SQL. `bq.cmd ls` is fine; `bq.cmd query` splits on `C:\Program Files`.
 
 ```bash
-export CLOUDSDK_PYTHON="/c/Python312/python.exe"
+export CLOUDSDK_PYTHON="/c/Python314/python.exe"
 export CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT=evidence-admin@class-6-5-tiqs.iam.gserviceaccount.com
 
 bq ls --project_id=class-6-5-tiqs
@@ -1323,7 +1323,7 @@ gcloud projects add-iam-policy-binding class-6-5-tiqs \
   --role="roles/bigquery.jobUser"
 
 gcloud config set account "${APPROVER_EMAIL}"
-export CLOUDSDK_PYTHON="/c/Python312/python.exe"
+export CLOUDSDK_PYTHON="/c/Python314/python.exe"
 export CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT=evidence-admin@class-6-5-tiqs.iam.gserviceaccount.com
 ```
 
@@ -1456,7 +1456,7 @@ Do not paste workflow YAML, `<terraform output>`, or `<id>` into Git Bash. Angle
 The Unix `bq` wrapper looks for `python3.14` on `PATH`. Windows has `python.exe`, not that name. Pin Python or use `bq.cmd` only for short commands such as `ls`:
 
 ```bash
-export CLOUDSDK_PYTHON="/c/Python312/python.exe"
+export CLOUDSDK_PYTHON="/c/Python314/python.exe"
 bq ls --project_id=class-6-5-tiqs
 ```
 
@@ -1752,8 +1752,19 @@ gcloud config unset auth/impersonate_service_account
 CONFIRM_TEARDOWN=yes ./scripts/15-teardown.sh
 ```
 
-The script clears impersonation, deletes lab namespaces including Helm `falco`, empties Artifact Registry (stripping Git Bash `\r`), deletes the evidence dataset as `evidence-admin`,
-removes those resources from Terraform state, and applies a destroy plan.
+The script does the following:
+
+- clears impersonation;
+- deletes the lab namespaces, including Helm `falco`;
+- empties Artifact Registry (stripping Git Bash `\r`);
+- deletes the evidence dataset as `evidence-admin`, and removes it from Terraform state only if the delete succeeded;
+- releases the KMS key ring and keys from Terraform state so they keep their versions;
+- applies a destroy plan;
+- removes the cluster's kubeconfig entry.
+
+It finds an interpreter for the `bq` wrapper automatically (`C:\Python312`, `313`, or `314`).
+
+The KMS keys are retained because destroying a `google_kms_crypto_key` cannot delete the key; it destroys every key version instead. That used to force a new approval-signing version, and new `approval_key_version` pins, on every rebuild. Now the ENABLED version survives, and `03-adopt-retained-gcp.sh` re-imports it unchanged. Their IAM bindings are still destroyed. To destroy all versions anyway, add `DESTROY_KMS_KEYS=yes`.
 
 Skip a stage with `SKIP_KUBERNETES=yes`, `SKIP_ARTIFACT_REGISTRY=yes`,
 `SKIP_BIGQUERY=yes`, or `SKIP_TERRAFORM=yes`.
@@ -1818,26 +1829,31 @@ gcloud artifacts packages list \
 The evidence dataset ACL is only `evidence-admin`. Terraform running as a user cannot delete its tables (`bigquery.tables.delete` denied). Delete the dataset as that SA first, then destroy:
 
 ```bash
-export CLOUDSDK_PYTHON="/c/Python312/python.exe"
+export CLOUDSDK_PYTHON="/c/Python314/python.exe"   # any installed 3.12-3.14
 export CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT=evidence-admin@class-6-5-tiqs.iam.gserviceaccount.com
 bq rm -r -f class-6-5-tiqs:agentic_governance_evidence
 unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
 
-terraform -chdir=terraform state rm google_bigquery_dataset_access.governance_sink_writer || true
-terraform -chdir=terraform state rm google_bigquery_dataset.governance_evidence || true
+# Only after bq rm succeeded:
+terraform -chdir=terraform state rm google_bigquery_dataset_access.governance_sink_writer
+terraform -chdir=terraform state rm google_bigquery_dataset.governance_evidence
+
+# Retain KMS keys so their versions are not destroyed:
+terraform -chdir=terraform state rm google_kms_crypto_key.approval_signing
+terraform -chdir=terraform state rm google_kms_crypto_key.lab_cmek
+terraform -chdir=terraform state rm google_kms_key_ring.governance
 
 terraform -chdir=terraform plan -destroy -out=destroy.tfplan
 terraform -chdir=terraform show destroy.tfplan
 terraform -chdir=terraform apply destroy.tfplan
 ```
 
-KMS key rings cannot be deleted. Workload Identity pools and custom IAM role IDs stay reserved for days after destroy. The next apply should run `./scripts/03-adopt-retained-gcp.sh` first, or it will 409/400 on those names.
+KMS key rings cannot be deleted, and the keys are retained as above. Workload Identity pools and custom IAM role IDs stay reserved for days after destroy. The next apply should run `./scripts/03-adopt-retained-gcp.sh` first, or it will 409/400 on those names.
 
 ### **25.5 Remove local generated files**
 
 ```bash
 rm -rf terraform/.terraform
-rm -f terraform/terraform.tfvars
 rm -f terraform/*.tfplan
 rm -rf release-evidence
 rm -f trivy-results.sarif
@@ -1847,8 +1863,11 @@ Keep:
 
 ```text
 terraform/.terraform.lock.hcl
+terraform/terraform.tfvars          gitignored; holds your real CIDR, signer, and KMS version
 terraform/terraform.tfvars.example
 ```
+
+Deleting `terraform.tfvars` means the next rebuild starts from the example's placeholders. Terraform now rejects the placeholder signer and the `203.0.113.x` CIDR at plan time, but keeping the file avoids re-entering them. Update its CIDR if your public IP changed.
 
 ### **25.6 Confirm resources are gone**
 
@@ -1867,7 +1886,7 @@ gcloud kms keyrings list \
   --project=class-6-5-tiqs \
   --location=us-central1
 
-export CLOUDSDK_PYTHON="/c/Python312/python.exe"
+export CLOUDSDK_PYTHON="/c/Python314/python.exe"
 bq ls --project_id=class-6-5-tiqs
 
 helm list -n falco
