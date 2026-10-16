@@ -1,0 +1,28 @@
+# Exceptions for the image release gate in scripts/13-release-images.sh.
+# The repository filesystem scan in CI uses .trivyignore.yaml instead.
+#
+# Every entry must be scoped to a path and carry an expired_at date. Once the
+# date passes, Trivy stops honoring the entry and the release gate fails again,
+# so the exception has to be re-reviewed rather than silently kept.
+
+# kubectl in the MCP Server image (docker/mcp_docker.txt, KUBECTL_VERSION).
+# Upstream kubectl v1.36.5 and v1.37.1 are built with Go 1.26.8 and
+# golang.org/x/net v0.56/v0.57; the fixes land in Go 1.26.9 and x/net 0.60.0.
+# No upstream kubectl release includes them yet. Remove these entries once a
+# rebuilt kubectl patch release is pinned in docker/mcp_docker.txt.
+vulnerabilities:
+  - id: CVE-2026-78667
+    paths:
+      - "usr/local/bin/kubectl"
+    expired_at: 2026-11-15
+    statement: Upstream kubectl Go stdlib; awaiting a kubectl patch built with Go 1.26.9.
+  - id: CVE-2026-78669
+    paths:
+      - "usr/local/bin/kubectl"
+    expired_at: 2026-11-15
+    statement: Upstream kubectl Go stdlib and golang.org/x/net; awaiting a rebuilt kubectl patch.
+  - id: CVE-2026-97031
+    paths:
+      - "usr/local/bin/kubectl"
+    expired_at: 2026-11-15
+    statement: Upstream kubectl Go stdlib; awaiting a kubectl patch built with Go 1.26.9.

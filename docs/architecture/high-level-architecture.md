@@ -73,7 +73,7 @@ Live lab stack. GitHub Actions and Workload Identity Federation feed Artifact Re
            │                                      │
            │ ┌──────────────────────────────────┐ │
            │ │ IR Analyst Agent                 │ │
-           │ │ Vertex AI / Gemini 2.5 Flash     │ │
+           │ │ Vertex AI / Gemini 3.8 Flash     │ │
            │ └──────────────────────────────────┘ │
            │                                      │
            │ ┌──────────────────────────────────┐ │

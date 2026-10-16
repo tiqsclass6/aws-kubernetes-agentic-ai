@@ -46,7 +46,7 @@ Google identities in this org:
 ```text
 Cluster / Terraform admin:  a project Owner (may be a consumer Gmail account)
 Approval signer / BQ:       a Workspace user in the org's allowed domain
-                            (live: user:APPROVER_EMAIL)
+                            (export it as APPROVER_EMAIL)
 Evidence dataset owner:     evidence-admin@class-6-5-tiqs.iam.gserviceaccount.com
 ```
 
@@ -74,11 +74,11 @@ The backend bucket must already exist before `terraform init`.
 Required tools:
 
 ```text
-Terraform >= 1.10.0 (CI pins 1.15.8)
+Terraform >= 1.16.0 (CI pins 1.16.6)
 Google Cloud CLI
 kubectl
 Docker with Buildx
-Python 3.11
+Python 3.14 (CI and images; 3.15 lacks wheels for psycopg2-binary and PyYAML pins)
 pytest and PyYAML (python/requirements-test.txt)
 cryptography (python/requirements-approval-agent.txt; needed by unit tests)
 Bash
@@ -86,9 +86,9 @@ OpenSSL
 Helm
 jq
 curl
-OPA 1.19.1
-Conftest 0.69.0
-Trivy 0.74.0
+OPA 1.21.2
+Conftest 0.71.1
+Trivy 0.76.0
 Syft
 Cosign
 ```
@@ -142,7 +142,7 @@ approval_signer_members = [
 approval_key_version = "7"
 ```
 
-`approval_signer_members` must be an org-permitted Workspace identity, not a consumer Gmail account. Versions `1`–`6` are DESTROYED. The live signing version from the 22 Aug 2026 e2e is `7`. If `03-adopt-retained-gcp.sh` prints a different ENABLED version, pin tfvars, `manifests/approval-agent.yaml`, and `scripts/11-review-approval.sh` to that version before signing.
+`approval_signer_members` must be an org-permitted Workspace identity, not a consumer Gmail account. Later sections refer to it as `APPROVER_EMAIL`; export it in your shell instead of writing the address into tracked files. Versions `1`–`6` are DESTROYED. The live signing version from the 22 Aug 2026 e2e is `7`. If `03-adopt-retained-gcp.sh` prints a different ENABLED version, pin tfvars, `manifests/approval-agent.yaml`, and `scripts/11-review-approval.sh` to that version before signing.
 
 Copying `terraform/terraform.tfvars.example` already targets `us-central1-c` and KMS version `7`. Still replace the documentation CIDR and signer email.
 
@@ -471,16 +471,14 @@ The workflow files use these project compatibility references.
 CI (`.github/workflows/ci.yml`):
 
 ```yaml
-actions/checkout@v5
 actions/checkout@v7
-actions/setup-python@v6
 actions/setup-python@v7
 hashicorp/setup-terraform@v4
 github/codeql-action/upload-sarif@v4
 ```
 
-CI pins Terraform `1.15.8`, OPA `1.19.1`, Conftest `0.69.0`, and Trivy `0.74.0`.
-The Python job uses checkout `@v7` and setup-python `@v7`. Other CI jobs use checkout `@v5`. The Lint job uses setup-python `@v6`.
+CI pins Python `3.14`, Terraform `1.16.6`, OPA `1.21.2`, Conftest `0.71.1`, and Trivy `0.76.0`.
+Every CI job uses checkout `@v7`; the Lint and Python jobs use setup-python `@v7`.
 
 Release (`.github/workflows/release.yml`):
 
@@ -906,11 +904,11 @@ Clear BigQuery impersonation first. Section 21 sets `CLOUDSDK_AUTH_IMPERSONATE_S
 ```bash
 unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
 gcloud config unset auth/impersonate_service_account
-gcloud config set account APPROVER_EMAIL
+gcloud config set account "${APPROVER_EMAIL}"
 gcloud auth list
 ```
 
-The active account must be the Workspace signer in `approval_signer_members` (`user:APPROVER_EMAIL`). Terraform grants that identity `roles/pubsub.subscriber` and `roles/pubsub.viewer` on
+The active account must be the Workspace signer in `approval_signer_members` (`user:$APPROVER_EMAIL`). Terraform grants that identity `roles/pubsub.subscriber` and `roles/pubsub.viewer` on
 `approval-requests-review-sub`, `roles/pubsub.publisher` on `approval-decisions`, and `roles/cloudkms.signerVerifier` on `approval-signing`. A Gmail project Owner can often pull Pub/Sub, but it cannot sign unless it is also in `approval_signer_members`.
 
 `11-review-approval.sh` only signs a message that is already on `approval-requests-review-sub`. That message is created when the Governance Agent emits `REQUIRE_APPROVAL`. Run the governance smoke test first, then sign:
@@ -929,16 +927,16 @@ gcloud pubsub subscriptions describe approval-requests-review-sub \
   --format='yaml(name,topic,ackDeadlineSeconds)'
 ```
 
-If describe returns `PERMISSION_DENIED`, the active account is not the Terraform signer (or impersonation is still on). Re-run the account commands above, then `terraform apply` so `approval_reviewers_*` IAM exists for `user:APPROVER_EMAIL`.
+If describe returns `PERMISSION_DENIED`, the active account is not the Terraform signer (or impersonation is still on). Re-run the account commands above, then `terraform apply` so `approval_reviewers_*` IAM exists for `user:$APPROVER_EMAIL`.
 
 If `09` already passed and the review script is still empty, mint a new request by re-running `09`, then run `11` in the same shell.
 
-Approve with the live Workspace signer (`APPROVER_EMAIL` in this lab), not the documentation placeholder `YOUR_WORKSPACE_ACCOUNT` and not `analyst@example.com`:
+Approve as the live Workspace signer (`$APPROVER_EMAIL`), not the documentation placeholder `YOUR_WORKSPACE_ACCOUNT` and not `analyst@example.com`:
 
 ```bash
 ./scripts/11-review-approval.sh \
   approve \
-  "APPROVER_EMAIL" \
+  "${APPROVER_EMAIL}" \
   "Approved after validating the incident evidence and proposed target."
 ```
 
@@ -947,7 +945,7 @@ Deny:
 ```bash
 ./scripts/11-review-approval.sh \
   deny \
-  "APPROVER_EMAIL" \
+  "${APPROVER_EMAIL}" \
   "Denied because the requested action needs additional investigation."
 ```
 
@@ -987,7 +985,7 @@ KMS_KEY_VERSION=7 \
 APPROVAL_TTL_SECONDS=600 \
 ./scripts/11-review-approval.sh \
   approve \
-  "APPROVER_EMAIL" \
+  "${APPROVER_EMAIL}" \
   "Approved after reviewing the correlated security evidence."
 ```
 
@@ -1263,10 +1261,10 @@ Apply and restart the Reporting Agent for the Jira configuration.
 
 The dataset `agentic_governance_evidence` exists, but its ACL is only `evidence-admin`. Project Owner is not enough to list tables. A consumer Gmail account cannot be added to that ACL or as Token Creator on the SA (`iam.allowedPolicyMemberDomains`).
 
-Terraform grants Token Creator on `evidence-admin` to every `approval_signer_members` identity. Stay on the Workspace signer (`APPROVER_EMAIL`) for this section:
+Terraform grants Token Creator on `evidence-admin` to every `approval_signer_members` identity. Stay on the Workspace signer (`$APPROVER_EMAIL`) for this section:
 
 ```bash
-gcloud auth login APPROVER_EMAIL
+gcloud auth login "${APPROVER_EMAIL}"
 ```
 
 If the probe below fails after apply, wait a minute for IAM, then retry. If Terraform has not applied the Token Creator binding yet:
@@ -1275,7 +1273,7 @@ If the probe below fails after apply, wait a minute for IAM, then retry. If Terr
 gcloud iam service-accounts add-iam-policy-binding \
   evidence-admin@class-6-5-tiqs.iam.gserviceaccount.com \
   --project=class-6-5-tiqs \
-  --member="user:APPROVER_EMAIL" \
+  --member="user:${APPROVER_EMAIL}" \
   --role="roles/iam.serviceAccountTokenCreator"
 ```
 
@@ -1309,13 +1307,13 @@ bq ls class-6-5-tiqs:agentic_governance_evidence
 ```bash
 unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
 gcloud config unset auth/impersonate_service_account
-gcloud auth login   # Gmail project Owner, not APPROVER_EMAIL
+gcloud auth login   # Gmail project Owner, not $APPROVER_EMAIL
 
 gcloud projects add-iam-policy-binding class-6-5-tiqs \
   --member="serviceAccount:evidence-admin@class-6-5-tiqs.iam.gserviceaccount.com" \
   --role="roles/bigquery.jobUser"
 
-gcloud config set account APPROVER_EMAIL
+gcloud config set account "${APPROVER_EMAIL}"
 export CLOUDSDK_PYTHON="/c/Python312/python.exe"
 export CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT=evidence-admin@class-6-5-tiqs.iam.gserviceaccount.com
 ```
@@ -1463,7 +1461,7 @@ gcloud config unset auth/impersonate_service_account
 rm -f "$HOME/.kube/gke_gcloud_auth_plugin_cache"
 ```
 
-If `gke-gcloud-auth-plugin` then fails with permission denied on `%APPDATA%\gcloud\legacy_credentials\APPROVER_EMAIL\adc.json`, that folder has a broken NTFS ACL. Switch `gcloud config set account` to the Gmail project Owner for cluster admin, or take ownership of that directory in elevated PowerShell and `gcloud auth login --force`.
+If `gke-gcloud-auth-plugin` then fails with permission denied on `%APPDATA%\gcloud\legacy_credentials\SIGNER_EMAIL\adc.json`, that folder has a broken NTFS ACL. Switch `gcloud config set account` to the Gmail project Owner for cluster admin, or take ownership of that directory in elevated PowerShell and `gcloud auth login --force`.
 
 Two Cloud SDK installs (`Program Files (x86)` and Chocolatey) can disagree on config. `gcloud config list` from the same shell you use for `kubectl`.
 
@@ -1534,17 +1532,17 @@ gcloud iam service-accounts get-iam-policy \
 
 ### **Pub/Sub PERMISSION_DENIED on approval review**
 
-`11-review-approval.sh` pull/publish/ack must run as `APPROVER_EMAIL` with impersonation off. `evidence-admin` has BigQuery only.
+`11-review-approval.sh` pull/publish/ack must run as `$APPROVER_EMAIL` with impersonation off. `evidence-admin` has BigQuery only.
 
 ```bash
 unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
 gcloud config unset auth/impersonate_service_account
-gcloud config set account APPROVER_EMAIL
+gcloud config set account "${APPROVER_EMAIL}"
 gcloud pubsub subscriptions get-iam-policy approval-requests-review-sub \
   --project=class-6-5-tiqs
 ```
 
-The policy should include `user:APPROVER_EMAIL` with `roles/pubsub.subscriber` and `roles/pubsub.viewer`. If it does not, apply Terraform with that member in `approval_signer_members`.
+The policy should include `user:$APPROVER_EMAIL` with `roles/pubsub.subscriber` and `roles/pubsub.viewer`. If it does not, apply Terraform with that member in `approval_signer_members`.
 
 ### **Pub/Sub messages stop moving**
 
@@ -1680,6 +1678,10 @@ image-lock.json
 ```
 
 Deployment uses immutable digests from `image-lock.json`, not mutable image tags.
+
+The image scan fails on any fixable HIGH or CRITICAL finding. Exceptions live in `.trivyignore-images.yaml` (not the repository-scan `.trivyignore.yaml`). Each entry is scoped to a file path and has an `expired_at` date. The scan records suppressed findings as `ignored` in `release-evidence/trivy/*.json`.
+
+Current exception: three Go CVEs in the upstream `kubectl` binary of the `mcp-server` image, expiring `2026-11-15`. If `13` fails with `Trivy rejected .../mcp-server@...` after that date, check for a newer kubectl 1.36 patch release. Pin it in `docker/mcp_docker.txt` (`KUBECTL_VERSION`) and remove the entries. If none is out yet, review and extend the dates deliberately.
 
 Local equivalent:
 

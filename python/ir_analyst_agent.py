@@ -68,14 +68,23 @@ class IRAnalysis(BaseModel):
 
 PROJECT_ID = os.environ["PROJECT_ID"]
 
+# Gemini 3.x Flash is served from the global endpoint (and the us/eu
+# multi-regions), not from us-central1.
 LOCATION = os.environ.get(
     "LOCATION",
-    "us-central1",
+    "global",
 )
 
 MODEL = os.environ.get(
     "MODEL",
-    "gemini-2.5-flash",
+    "gemini-3.8-flash",
+)
+
+MAX_OUTPUT_TOKENS = int(
+    os.environ.get(
+        "MAX_OUTPUT_TOKENS",
+        "8192",
+    )
 )
 
 MAX_SIGNALS_IN_PROMPT = int(
@@ -138,14 +147,25 @@ def process(
             response_json_schema=(
                 IRAnalysis.model_json_schema()
             ),
-            temperature=0.1,
-            max_output_tokens=2048,
+            # Thinking tokens count against max_output_tokens. Keep thinking
+            # low so the structured JSON is not truncated. Temperature is left
+            # at the model default, as Google recommends for Gemini 3.
+            thinking_config=types.ThinkingConfig(
+                thinking_level=types.ThinkingLevel.LOW,
+            ),
+            max_output_tokens=MAX_OUTPUT_TOKENS,
         ),
     )
 
     if not response.text:
+        finish_reason = (
+            response.candidates[0].finish_reason
+            if response.candidates
+            else None
+        )
         raise ValueError(
-            "Vertex AI returned an empty response"
+            "Vertex AI returned an empty response "
+            f"(finish_reason={finish_reason})"
         )
 
     analysis = IRAnalysis.model_validate_json(

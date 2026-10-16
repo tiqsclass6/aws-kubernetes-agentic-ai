@@ -10,8 +10,8 @@ PROJECT_ID="${PROJECT_ID:?PROJECT_ID is required}"
 REGION="${REGION:-us-central1}"
 REPOSITORY="${REPOSITORY:-vertex-agent-lab}"
 RELEASE_TAG="${RELEASE_TAG:-v1}"
-TRIVY_VERSION="${TRIVY_VERSION:-0.74.0}"
-SYFT_VERSION="${SYFT_VERSION:-1.44.0}"
+TRIVY_VERSION="${TRIVY_VERSION:-0.76.0}"
+SYFT_VERSION="${SYFT_VERSION:-1.54.1}"
 COSIGN_OIDC_ISSUER="${COSIGN_OIDC_ISSUER:-https://token.actions.githubusercontent.com}"
 COSIGN_CERTIFICATE_IDENTITY="${COSIGN_CERTIFICATE_IDENTITY:-}"
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}"
@@ -77,9 +77,12 @@ for item in "${images[@]}"; do
   docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v "${EVIDENCE_DIR}/trivy:/out" \
+    -v "${ROOT_DIR}/.trivyignore-images.yaml:/policy/.trivyignore-images.yaml:ro" \
     "aquasec/trivy:${TRIVY_VERSION}" image \
     --severity HIGH,CRITICAL \
     --ignore-unfixed \
+    --ignorefile /policy/.trivyignore-images.yaml \
+    --show-suppressed \
     --exit-code 1 \
     --format json \
     --output "/out/${image_name}.json" \

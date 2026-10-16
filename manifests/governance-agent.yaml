@@ -126,7 +126,7 @@ spec:
             - name: tmp
               mountPath: /tmp
         - name: opa
-          image: openpolicyagent/opa:1.19.1
+          image: openpolicyagent/opa:1.21.2
           imagePullPolicy: IfNotPresent
           args:
             - run

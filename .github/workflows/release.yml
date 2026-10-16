@@ -29,8 +29,8 @@ env:
   CLUSTER_NAME: ${{ vars.GKE_CLUSTER_NAME }}
   CLUSTER_LOCATION: ${{ vars.GKE_CLUSTER_LOCATION }}
   RELEASE_TAG: ${{ inputs.tag }}
-  TRIVY_VERSION: "0.74.0"
-  SYFT_VERSION: "1.44.0"
+  TRIVY_VERSION: "0.76.0"
+  SYFT_VERSION: "1.54.1"
   COSIGN_OIDC_ISSUER: https://token.actions.githubusercontent.com
   COSIGN_CERTIFICATE_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}
 

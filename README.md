@@ -1,8 +1,8 @@
 # **Agentic AI on GKE — Governed Multi-Agent Security Platform**
 
-![Terraform](https://img.shields.io/badge/Terraform-%3E%3D1.10.0-623CE4?style=for-the-badge&logo=terraform&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-%3E%3D1.16.0-623CE4?style=for-the-badge&logo=terraform&logoColor=white)
 ![GKE](https://img.shields.io/badge/GKE-Workload_Identity-4285F4?style=for-the-badge&logo=googlekubernetesengine&logoColor=white)
-![Vertex AI](https://img.shields.io/badge/Vertex_AI-Gemini_2.5-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)
+![Vertex AI](https://img.shields.io/badge/Vertex_AI-Gemini_3.8-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)
 ![OPA](https://img.shields.io/badge/OPA-Deterministic_Governance-7D64FF?style=for-the-badge&logo=openpolicyagent&logoColor=white)
 ![Cloud KMS](https://img.shields.io/badge/Cloud_KMS-Signed_Approvals-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)
 ![mTLS](https://img.shields.io/badge/mTLS-MCP_Gateway-003459?style=for-the-badge&logo=nginx&logoColor=white)
@@ -207,7 +207,7 @@ Critical incidents require signed human approval by default.
 | **Kubernetes**                  | GKE Dataplane V2, Workload Identity, NetworkPolicy     |
 | **Infrastructure as code**      | Terraform                                              |
 | **Event transport**             | Pub/Sub with retries and dead-letter topics            |
-| **AI analysis**                 | Vertex AI, Gemini 2.5 Flash                            |
+| **AI analysis**                 | Vertex AI, Gemini 3.8 Flash (global endpoint)          |
 | **Deterministic governance**    | OPA/Rego plus Python enforcement                       |
 | **State and replay prevention** | Firestore                                              |
 | **Approval signing**            | Cloud KMS asymmetric signing                           |
@@ -217,7 +217,7 @@ Critical incidents require signed human approval by default.
 | **Scanning**                    | Falco, Trivy, Prowler                                  |
 | **CI/CD**                       | GitHub Actions and Google Workload Identity Federation |
 | **Supply-chain controls**       | Trivy, Syft, Cosign, immutable image digests           |
-| **Language**                    | Python 3.11                                            |
+| **Language**                    | Python 3.14                                            |
 
 ## **Repository Structure**
 
@@ -444,11 +444,11 @@ agentic/
 
 | **Tool**              | **Purpose**                                                     |
 |-----------------------|-----------------------------------------------------------------|
-| Terraform `>= 1.10.0` | Provision Google Cloud infrastructure                           |
+| Terraform `>= 1.16.0` | Provision Google Cloud infrastructure                           |
 | Google Cloud CLI      | Authentication, GKE access, Pub/Sub, KMS, and Artifact Registry |
 | `kubectl`             | Kubernetes deployment and verification                          |
 | Docker with Buildx    | Build container images locally                                  |
-| Python 3.11           | Tests, validation, secret generation, and helper scripts        |
+| Python 3.14           | Tests, validation, secret generation, and helper scripts        |
 | OpenSSL               | Generate the MCP server and client certificate authorities      |
 | OPA                   | Run governance policy tests                                     |
 | Conftest              | Validate Kubernetes objects against repository policy           |
@@ -695,7 +695,7 @@ Review and sign the next request:
 ```bash
 ./scripts/11-review-approval.sh \
   approve \
-  "APPROVER_EMAIL" \
+  "${APPROVER_EMAIL}" \
   "Approved after reviewing the correlated evidence and proposed target."
 ```
 
@@ -704,7 +704,7 @@ Deny a request:
 ```bash
 ./scripts/11-review-approval.sh \
   deny \
-  "APPROVER_EMAIL" \
+  "${APPROVER_EMAIL}" \
   "Denied because the proposed action requires additional investigation."
 ```
 
@@ -718,7 +718,7 @@ The script:
 - publishes the signed decision;
 - acknowledges the original request only after publication succeeds.
 
-The signing key version is `7` (versions `1`–`6` are DESTROYED). Sign as the Workspace identity in `approval_signer_members` (`APPROVER_EMAIL` in this lab). After a teardown, run `03-adopt-retained-gcp.sh` and pin whatever ENABLED version it prints.
+The signing key version is `7` (versions `1`–`6` are DESTROYED). Sign as the Workspace identity in `approval_signer_members` (export it as `APPROVER_EMAIL` before running these commands). After a teardown, run `03-adopt-retained-gcp.sh` and pin whatever ENABLED version it prints.
 
 ## **Controlled Remediation**
 
@@ -795,8 +795,8 @@ Optional Slack and Jira integrations use Secret Manager containers. Terraform do
 The repository uses:
 
 ```yaml
-actions/checkout@v5
-actions/setup-python@v6
+actions/checkout@v7
+actions/setup-python@v7
 hashicorp/setup-terraform@v4
 github/codeql-action/upload-sarif@v4
 actions/upload-artifact@v7
@@ -832,7 +832,7 @@ export CLOUDSDK_PYTHON="/c/Python312/python.exe"
 
 Use `bq.cmd` only for short commands such as `ls`. Do not run `bq.cmd query` from Git Bash; it splits on `C:\Program Files`. Keep SQL on one line with `bq query`.
 
-Unset `CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT` before `kubectl`. If kubectl still runs as `evidence-admin`, delete `%USERPROFILE%\.kube\gke_gcloud_auth_plugin_cache`. If `gke-gcloud-auth-plugin` cannot write `legacy_credentials\APPROVER_EMAIL\adc.json`, use the Gmail project Owner for cluster admin.
+Unset `CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT` before `kubectl`. If kubectl still runs as `evidence-admin`, delete `%USERPROFILE%\.kube\gke_gcloud_auth_plugin_cache`. If `gke-gcloud-auth-plugin` cannot write `legacy_credentials\SIGNER_EMAIL\adc.json`, use the Gmail project Owner for cluster admin.
 
 ### **Public GKE Endpoint**
 

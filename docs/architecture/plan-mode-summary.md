@@ -94,7 +94,7 @@ Analyze the request and ask clarifying questions about:
 | **Out of scope**               | Datadog, Kyverno, Redis, Calico network policy, a `monitoring` namespace, and a `vertex-agent` image.                                                                                                                                                                                       |
 | **Primary security objective** | Deterministic authorization, signed human approval, least privilege, mTLS, replay prevention, immutable releases, and durable evidence.                                                                                                                                                     |
 | **Target workload**            | `broken-app` (`app:v1`) and PostgreSQL in `app01`.                                                                                                                                                                                                                                          |
-| **Identities**                 | Gmail project Owner may administer the cluster and Terraform. Consumer Gmail cannot be on the BigQuery dataset ACL or `evidence-admin` IAM. Workspace signer `APPROVER_EMAIL` is in `approval_signer_members`. Dataset OWNER is `evidence-admin@class-6-5-tiqs.iam.gserviceaccount.com`. |
+| **Identities**                 | Gmail project Owner may administer the cluster and Terraform. Consumer Gmail cannot be on the BigQuery dataset ACL or `evidence-admin` IAM. The Workspace signer is in `approval_signer_members`. Dataset OWNER is `evidence-admin@class-6-5-tiqs.iam.gserviceaccount.com`. |
 | **Default execution posture**  | `AUTOMATION_MODE: disabled` and `EXECUTION_MODE: disabled` until explicitly changed to `controlled`.                                                                                                                                                                                        |
 | **Success definition**         | Findings reach an incident report; sensitive actions require valid governance and approval evidence; no bypass around MCP, mTLS, policy, or RBAC.                                                                                                                                           |
 | **State storage**              | Remote GCS backend `gs://tiqs-kubernetes/agentic/terraform/state`.                                                                                                                                                                                                                          |
@@ -107,7 +107,7 @@ Analyze the request and ask clarifying questions about:
 - [x] Google Cloud project, region, zone, and cluster naming are defined.
 - [x] Target Kubernetes namespaces and allowlisted workload are defined.
 - [x] Fail-closed defaults are documented.
-- [x] Cloud KMS reviewer identity is a Workspace user (`APPROVER_EMAIL`); key version `1` is DESTROYED; live version is `2`.
+- [x] Cloud KMS reviewer identity is a Workspace user; key version `1` is DESTROYED; live version is `2`.
 - [ ] Administrator workstation CIDR remains in ignored `terraform/terraform.tfvars`.
 - [ ] Production GitHub environment reviewer must be confirmed for digest deploy.
 
@@ -571,7 +571,7 @@ Complexity remains **9/10**.
 - [x] Google Cloud project `class-6-5-tiqs` with required APIs.
 - [x] GCS Terraform state bucket.
 - [ ] Current workstation public IP `/32` in `terraform.tfvars`.
-- [x] Workspace signer `APPROVER_EMAIL` for KMS and BigQuery impersonation.
+- [x] Workspace signer for KMS and BigQuery impersonation.
 - [ ] GitHub environment reviewers for digest deploy.
 - [x] Local Terraform, gcloud, kubectl, Docker, Python 3.11, Helm, OpenSSL.
 
@@ -797,7 +797,7 @@ Let's begin with PHASE 1: CLARIFICATION.
 
 ### **This repository's filled request**
 
-MY REQUEST: Maintain the governed agentic security platform on GKE in `class-6-5-tiqs`. Preserve fail-closed defaults, numbered scripts `01`–`15`, Terraform `01`–`26`, KMS approval version 3, and the identity split between Gmail Owner, Workspace signer `APPROVER_EMAIL`, and `evidence-admin`. Do not enable controlled remediation without explicit approval.
+MY REQUEST: Maintain the governed agentic security platform on GKE in `class-6-5-tiqs`. Preserve fail-closed defaults, numbered scripts `01`–`15`, Terraform `01`–`26`, KMS approval version 3, and the identity split between Gmail Owner, Workspace signer, and `evidence-admin`. Do not enable controlled remediation without explicit approval.
 
 ---
 
@@ -858,7 +858,7 @@ This template mimics Cursor AI Plan Mode by structuring the conversation into cl
 2. **Shared UI.** `scripts/_ui.sh` adds section separators and colors. Source it; do not execute it.
 3. **Terraform numbering.** Files are `01-variables.tf` through `25-outputs.tf`. State addresses unchanged.
 4. **Cluster facts.** Zone `us-central1-c`, `e2-standard-4`, Dataplane V2, image tag `v1`, KMS approval version `3`.
-5. **Identity split.** Gmail Owner for cluster/Terraform. Workspace `APPROVER_EMAIL` for signing and BQ impersonation. Dataset OWNER is only `evidence-admin`.
+5. **Identity split.** Gmail Owner for cluster/Terraform. Workspace signer for signing and BQ impersonation. Dataset OWNER is only `evidence-admin`.
 6. **NetworkPolicy DNS.** kube-dns, node-local-dns, ClusterIP `10.112.0.10/32`, NodeLocal DNSCache `169.254.20.10/32`.
 7. **Git Bash.** `tr -d '\r'` on package lists; Unix `bq` with `CLOUDSDK_PYTHON`; never `bq.cmd query`.
 8. **kubectl cache.** Unset impersonation before kubectl; delete `%USERPROFILE%\.kube\gke_gcloud_auth_plugin_cache` if needed.

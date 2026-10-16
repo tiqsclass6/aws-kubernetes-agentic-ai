@@ -1,1 +1,8 @@
 *.sh text eol=lf
+
+# Never apply line-ending conversion to binary documents and images.
+# core.autocrlf=true would otherwise rewrite LF bytes in a PDF on checkout.
+*.pdf  binary
+*.docx binary
+*.png  binary
+*.jpg  binary

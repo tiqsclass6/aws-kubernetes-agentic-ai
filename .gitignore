@@ -19,9 +19,27 @@ agentic.tfplan
 *.sarif
 release-evidence/
 
-# Local validation traces
+# Local validation traces and live-run transcripts. These capture account
+# emails, project numbers, and workstation IPs, so keep them out of the repo.
 *.trace
-*validation-trace.log
+*.log
+*run-results*.txt
+*transcript*.txt
+
+# Private keys, certificates, and credential material
+*.pem
+*.key
+*.crt
+*.csr
+*.srl
+*.p12
+*.pfx
+*.jks
+*.kubeconfig
+kubeconfig
+.env
+.env.*
+!.env.example
 
 *.tfvars
 *.tfvars.json

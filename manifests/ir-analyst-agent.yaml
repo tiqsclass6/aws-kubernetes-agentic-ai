@@ -13,8 +13,9 @@ metadata:
   namespace: ai-agents
 data:
   PROJECT_ID: class-6-5-tiqs
-  LOCATION: us-central1
-  MODEL: gemini-2.5-flash
+  LOCATION: global
+  MODEL: gemini-3.8-flash
+  MAX_OUTPUT_TOKENS: "8192"
   INPUT_SUBSCRIPTION: ir-analyst-agent-sub
   OUTPUT_TOPIC: analyzed-incidents
   HEALTH_PORT: "8080"
