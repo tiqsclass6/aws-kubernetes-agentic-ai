@@ -139,6 +139,15 @@ resource "google_container_cluster" "primary" {
     delete = "30m"
   }
 
+  # node_config above only shapes the throwaway default pool that
+  # remove_default_node_pool deletes. Afterwards the provider reads node_config
+  # back from the real pool in 06-node-pool.tf (different metadata), or not at
+  # all, and every plan proposes replacing the whole cluster. Ignore that drift;
+  # node settings are managed by google_container_node_pool.primary.
+  lifecycle {
+    ignore_changes = [node_config]
+  }
+
   depends_on = [
     google_project_service.compute,
     google_project_service.container,

@@ -18,7 +18,7 @@ if [[ -z "${PROJECT_ID}" || "${PROJECT_ID}" == "(unset)" ]]; then
   die "Set PROJECT_ID or configure a gcloud project."
 fi
 
-TEST_RUN_ID="-$(date -u +%Y%m%dT%H%M%SZ)-${RANDOM}"
+TEST_RUN_ID="e2e-$(date -u +%Y%m%dT%H%M%SZ)-${RANDOM}"
 TARGET_DEPLOYMENT="smoke-${TEST_RUN_ID,,}"
 NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 TMP_DIR="$(mktemp -d)"
@@ -112,7 +112,7 @@ for event_file in "${TMP_DIR}"/event-*.json; do
     "${INPUT_TOPIC}" \
     --project="${PROJECT_ID}" \
     --message="$(cat "${event_file}")" \
-    --attribute="source=-smoke-test,test_run_id=${TEST_RUN_ID}" \
+    --attribute="source=pipeline-smoke-test,test_run_id=${TEST_RUN_ID}" \
     --quiet \
     >/dev/null
 done
