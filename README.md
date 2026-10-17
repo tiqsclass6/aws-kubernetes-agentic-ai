@@ -1,5 +1,7 @@
 # **Agentic AI on GKE — Governed Multi-Agent Security Platform**
 
+![Agentic AI on GKE — Governed Multi-Agent Security Platform](images/agentic-banner.png)
+
 ![Terraform](https://img.shields.io/badge/Terraform-%3E%3D1.16.0-623CE4?style=for-the-badge&logo=terraform&logoColor=white)
 ![GKE](https://img.shields.io/badge/GKE-Workload_Identity-4285F4?style=for-the-badge&logo=googlekubernetesengine&logoColor=white)
 ![Vertex AI](https://img.shields.io/badge/Vertex_AI-Gemini_3.8-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)
@@ -9,7 +11,7 @@
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-Keyless_Release-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 
 > **Status: configuration-ready for deployment.**
-> Student portfolio lab for a governed security-response workflow on GKE. Last verified live e2e: 22 Aug 2026 (then torn down). Re-apply from the Quick start or [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Automated remediation, Slack delivery, and Jira delivery are disabled by default.
+> Student portfolio lab for a governed security-response workflow on GKE. Last verified live e2e: 16–17 Oct 2026, two full rebuilds including one controlled-remediation run (then torn down). Re-apply from the Quick start or [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Automated remediation, Slack delivery, and Jira delivery are disabled by default.
 
 ## **Table of Contents**
 
@@ -637,6 +639,16 @@ GKE_CLUSTER_LOCATION
 
 Only the `deploy` job uses the `production` GitHub environment, which requires reviewer approval, so build-only releases run without waiting.
 
+Run releases from GitHub, not locally. Keyless Cosign signing on a workstation would sign with your own Google identity and publish that email to the public Rekor log, and `13` also needs `cosign` installed. GitHub-hosted runners cannot reach the GKE control plane (they are not in `authorized_networks`), so deploy the signed digests from your workstation:
+
+```bash
+gh workflow run release.yml -f tag=v1 -f deploy=false
+gh run download RUN_ID -n release-v1 -D release-evidence
+bash scripts/14-deploy-release-images.sh release-evidence/image-lock.json
+```
+
+Running `04` after a release moves the mutable `v1` tag back to unsigned local builds. Only the digests pinned by `14` are the signed release.
+
 ## **Validation**
 
 ### **Local Static Validation**
@@ -675,6 +687,28 @@ no remediation authorized
 
 This publishes two correlated synthetic findings and waits for the final incident report.
 
+### **Last Live Verification (16–17 October 2026)**
+
+Two full rebuilds from teardown, then teardown again. The KMS signing key (version `12`) was kept between runs.
+
+| **Check**                         | **Result**                                                                       |
+|-----------------------------------|----------------------------------------------------------------------------------|
+| `01-validate.sh`                  | 8/8: 11 Python tests, 5 OPA tests, 357 Conftest checks, `broken-app` rejected    |
+| `03` + Terraform                  | Retained KMS and GitHub sign-in pool re-adopted; 188 added, 0 destroyed          |
+| `04` / `05` / `08`                | 11 images, Falco on both nodes, all Deployments ready                            |
+| `09` governance                   | `REQUIRE_APPROVAL` with automation disabled                                      |
+| `10` end to end                   | Incident report through all eight stages; Gemini 3.8 Flash analysis              |
+| `11` signed approval              | KMS v12 signature verified; `execution-blocked` while fail-closed                |
+| Controlled mode (one test)        | Signed approval restarted `broken-app` through the mTLS gateway and MCP Server   |
+| BigQuery evidence                 | APPROVE audit and `executed` remediation rows queried as `evidence-admin`        |
+| Governed Release                  | 11/11 images scanned, SBOMs, Cosign signed and verified; build-only run, no wait |
+| `14` signed digests               | Lock checksum matched; 10 Deployments pinned to signed digests                   |
+| Slack                             | Incident report delivered (`status: sent`, HTTP 200)                             |
+| Trivy / Prowler jobs              | All findings accepted by the aggregator                                          |
+| `15` teardown                     | 188 destroyed; KMS key ring and version 12 retained                              |
+
+Not exercised: the release workflow's in-cloud `deploy` job, which cannot reach the control plane from GitHub-hosted runners.
+
 ### **Core Status Checks**
 
 ```bash
@@ -689,16 +723,21 @@ kubectl get cronjob -n security
 
 ## **Human Approval Workflow**
 
-List pending approval requests:
+Export the signer in every new terminal. If `APPROVER_EMAIL` is empty, `11` stops with a usage error, and `gcloud config set account "${APPROVER_EMAIL}"` clears your active account.
 
 ```bash
-gcloud pubsub subscriptions pull approval-requests-review-sub \
-  --project=class-6-5-tiqs \
-  --limit=5 \
-  --format=json
+export APPROVER_EMAIL=YOUR_WORKSPACE_SIGNER
 ```
 
-Review and sign the next request:
+Check for pending requests without leasing them. Do not `gcloud pubsub subscriptions pull` this subscription: a pull holds the request for 10 minutes, and `11` then finds nothing to sign.
+
+```bash
+gcloud pubsub subscriptions describe approval-requests-review-sub \
+  --project=class-6-5-tiqs \
+  --format='yaml(name,topic,ackDeadlineSeconds)'
+```
+
+Review and sign the next request. The script signs the oldest pending request, which may come from an earlier `09` run, so check the displayed `incident_id` before you confirm:
 
 ```bash
 ./scripts/11-review-approval.sh \
@@ -762,7 +801,17 @@ kubectl rollout status deployment/remediation-agent \
   --timeout=300s
 ```
 
-Enabling these flags does not bypass the policy, approval, replay, allowlist, mTLS, MCP, or RBAC controls.
+Enabling these flags does not bypass the policy, approval, replay, allowlist, mTLS, MCP, or RBAC controls. It does let policy approve some fixes without a human: a HIGH incident with confidence ≥ 0.95, low risk, at least 3 signals, 2 sources, and 3 evidence items runs automatically. The `09` fixture meets every threshold, so `09` restarts `broken-app` in controlled mode and fails its `REQUIRE_APPROVAL` check.
+
+Confirm the action, then return to fail-closed and keep the manifests out of your commit:
+
+```bash
+kubectl logs -n mcp deploy/mcp-server --since=1h | grep -i restart
+git checkout -- manifests/governance-agent.yaml manifests/remediation-agent.yaml
+kubectl apply -f manifests/governance-agent.yaml -f manifests/remediation-agent.yaml
+kubectl rollout restart deployment/governance-agent -n ai-governance
+kubectl rollout restart deployment/remediation-agent -n ai-agents
+```
 
 ## **Observability and Evidence**
 
@@ -884,4 +933,4 @@ Before enterprise use, the platform would require additional work such as:
 | **Lab**            | Agentic Lab                                   |
 | **Project**        | AI Governance Agentic Lab Project             |
 | **Version**        | 2.0                                           |
-| **Last Updated**   | August 22, 2026                               |
+| **Last Updated**   | October 16, 2026                              |

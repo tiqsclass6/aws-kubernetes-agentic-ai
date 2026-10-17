@@ -57,6 +57,7 @@ terraform.rc
 # Local AI-assistant instructions and settings
 CLAUDE.md
 CLAUDE.local.md
+HANDOFF.md
 .claude/
 
 # Python

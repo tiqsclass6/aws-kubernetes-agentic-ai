@@ -1,6 +1,6 @@
 # **RUNBOOK — Agentic Security Platform on GKE**
 
-This runbook provisions, validates, deploys, tests, operates, and removes the governed multi-agent security platform. Last verified live e2e: 22 Aug 2026 (then torn down).
+This runbook provisions, validates, deploys, tests, operates, and removes the governed multi-agent security platform. Last verified live e2e: 16–17 Oct 2026, two full rebuilds including one controlled-remediation run (then torn down).
 Re-apply from this runbook to run it again.
 
 The active architecture is:
@@ -914,7 +914,11 @@ kubectl logs -n ai-agents deployment/reporting-agent --tail=200
 Clear BigQuery impersonation first. Section 21 sets `CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT=evidence-admin@...`. That service account cannot pull `approval-requests-review-sub` or publish
 `approval-decisions`, so `11-review-approval.sh` fails with Pub/Sub `PERMISSION_DENIED`.
 
+Variables do not carry over between terminals. Export `APPROVER_EMAIL` first; the `:?` guard stops before an empty value clears your active gcloud account.
+
 ```bash
+export APPROVER_EMAIL=YOUR_WORKSPACE_SIGNER
+: "${APPROVER_EMAIL:?export APPROVER_EMAIL first}"
 unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
 gcloud config unset auth/impersonate_service_account
 gcloud config set account "${APPROVER_EMAIL}"
@@ -943,6 +947,8 @@ gcloud pubsub subscriptions describe approval-requests-review-sub \
 If describe returns `PERMISSION_DENIED`, the active account is not the Terraform signer (or impersonation is still on). Re-run the account commands above, then `terraform apply` so `approval_reviewers_*` IAM exists for `user:$APPROVER_EMAIL`.
 
 If `09` already passed and the review script is still empty, mint a new request by re-running `09`, then run `11` in the same shell.
+
+`11` signs the oldest pending request, not necessarily the one from your latest `09`. Check `incident_id` and `expires_at` in the displayed binding before you type `y`. In controlled mode (section 16), approving any pending request executes it.
 
 Approve as the live Workspace signer (`$APPROVER_EMAIL`), not the documentation placeholder `YOUR_WORKSPACE_ACCOUNT` and not `analyst@example.com`:
 
@@ -1063,6 +1069,25 @@ kubectl get configmap remediation-agent-config \
 
 The control-plane still rejects requests that fail deterministic policy, approval, allowlist, idempotency, MCP, mTLS, or RBAC checks.
 
+While both modes are `controlled`, policy can PERMIT without a human. A HIGH incident with confidence ≥ 0.95, low operational risk, at least 3 signals, 2 sources, and 3 evidence items executes automatically. The `09` fixture meets every threshold, so `09` restarts `broken-app` and then fails its `REQUIRE_APPROVAL` assertion. Live scanner findings can also qualify. Keep the controlled window short.
+
+Confirm the action (verified 16 Oct 2026: signed approval → `executed` → `POST /tool/restart_deployment` 200):
+
+```bash
+kubectl logs -n mcp deploy/mcp-server --since=1h | grep -i restart
+kubectl get deploy broken-app -n app01 -o jsonpath='{.spec.template.metadata.annotations}{"\n"}'
+```
+
+Return to fail-closed as soon as the test is done, and keep the edited manifests out of commits:
+
+```bash
+git checkout -- manifests/governance-agent.yaml manifests/remediation-agent.yaml
+kubectl apply -f manifests/governance-agent.yaml -f manifests/remediation-agent.yaml
+kubectl rollout restart deployment/governance-agent -n ai-governance
+kubectl rollout restart deployment/remediation-agent -n ai-agents
+kubectl exec -n ai-agents deploy/remediation-agent -- printenv EXECUTION_MODE
+```
+
 ---
 
 ## **17. Metrics and Operational Readiness**
@@ -1146,7 +1171,7 @@ Trivy finishing first is expected. Prowler stays `Running` much longer.
 ```text
 trivy-manual-*                        first image pull + vuln DB download, then ~1–2 minutes
 prowler-manual-*                      first pull of prowlercloud/prowler:5.35.0 is ~736 MiB (~3 minutes)
-                                      then 100+ GCP checks against class-6-5-tiqs (often 10–30 minutes)
+                                      then 100+ GCP checks against class-6-5-tiqs (~3 minutes on 16 Oct 2026; allow 30)
 Job activeDeadlineSeconds is 7200
 ```
 
@@ -1218,13 +1243,21 @@ The green Prowler Cloud footer in the Job log is advertising, not an error.
 
 Terraform creates the Secret Manager container, not the secret version.
 
-Add the webhook:
+Add the webhook. Read it without echoing it or saving it to shell history; an unset `SLACK_WEBHOOK_URL` fails with `Secret Payload cannot be empty`. Do not paste the URL anywhere else: anyone with it can post to the channel.
 
 ```bash
+read -rsp 'Slack webhook URL: ' SLACK_WEBHOOK_URL; echo
+[[ "$SLACK_WEBHOOK_URL" == https://hooks.slack.com/services/* ]] && echo "looks like a Slack webhook" || echo "not a Slack webhook URL"
+
 printf '%s' "${SLACK_WEBHOOK_URL}" \
   | gcloud secrets versions add security-slack-webhook-url \
       --project=class-6-5-tiqs \
       --data-file=-
+
+gcloud secrets versions list security-slack-webhook-url \
+  --project=class-6-5-tiqs \
+  --format='table(name,state,createTime)'
+unset SLACK_WEBHOOK_URL
 ```
 
 Set in `manifests/reporting-agent.yaml`:
@@ -1242,6 +1275,8 @@ kubectl rollout status deployment/reporting-agent \
   -n ai-agents \
   --timeout=300s
 ```
+
+Verify with `./scripts/10-test-pipeline.sh`. The report should contain `"slack": {"enabled": true, "status": "sent", "status_code": 200}` (verified 17 Oct 2026). Before committing, restore the fail-closed manifest with `git checkout -- manifests/reporting-agent.yaml`. Teardown deletes the secret container and its versions.
 
 ---
 
@@ -1414,15 +1449,15 @@ kubectl rollout restart deployment/remediation-agent -n ai-agents
 
 These are leftovers from a previous destroy or a partial apply. They are not random GCP outages.
 
-| **Error**                                                     | **Why**                                                                                     | **Fix**                                                                                                              |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **custom role `role_id` marked for deletion**                 | Role IDs stay reserved ~7 days                                                              | Code uses `prowlerStorageIamViewerV2`                                                                                |
-| **Workload Identity pool 409**                                | Pools are soft-deleted 30 days                                                              | `./scripts/03-adopt-retained-gcp.sh` imports `github-actions`                                                        |
-| **KMS key ring or crypto key 409**                            | Key rings/keys cannot be fully deleted                                                      | Same script imports `agentic-governance` / `approval-signing` / `lab-cmek`                                           |
-| **Secret / BQ / GCS CMEK `DESTROY_SCHEDULED` or `DESTROYED`** | Teardown schedules the CMEK primary (last e2e: `lab-cmek` v5); encrypt uses the key primary | Same script enables or creates a version and sets it primary. DESTROYED versions cannot be restored.                 |
-| **BigQuery `allowedPolicyMemberDomains`**                     | Default dataset ACL includes consumer Google accounts                                       | Dataset OWNER is only `evidence-admin`; impersonate that SA from a Workspace user                                    |
+| **Error**                                                     | **Why**                                                                                     | **Fix**                                                                                                               |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **custom role `role_id` marked for deletion**                 | Role IDs stay reserved ~7 days                                                              | Code uses `prowlerStorageIamViewerV2`                                                                                 |
+| **Workload Identity pool 409**                                | Pools are soft-deleted 30 days                                                              | `./scripts/03-adopt-retained-gcp.sh` imports `github-actions`                                                         |
+| **KMS key ring or crypto key 409**                            | Key rings/keys cannot be fully deleted                                                      | Same script imports `agentic-governance` / `approval-signing` / `lab-cmek`                                            |
+| **Secret / BQ / GCS CMEK `DESTROY_SCHEDULED` or `DESTROYED`** | Teardown keeps KMS keys unless `DESTROY_KMS_KEYS=yes` (last e2e: `lab-cmek` v9 primary)     | `03` restores or creates an ENABLED version and makes it primary (CMEK encrypt uses the primary). DESTROYED is final  |
+| **BigQuery `allowedPolicyMemberDomains`**                     | Default dataset ACL includes consumer Google accounts                                       | Dataset OWNER is only `evidence-admin`; impersonate that SA from a Workspace user                                     |
 | **KMS key version DESTROYED**                                 | Destroyed versions cannot sign                                                              | Pin the ENABLED signing version (currently `12`) in tfvars, the approval agent ConfigMap, and `11-review-approval.sh` |
-| **Node pool `ERROR`**                                         | Failed bootstrap or datapath mismatch                                                       | Cluster uses Dataplane V2; script deletes the ERROR pool                                                             |
+| **Node pool `ERROR`**                                         | Failed bootstrap or datapath mismatch                                                       | Cluster uses Dataplane V2; script deletes the ERROR pool                                                              |
 
 ```bash
 ./scripts/03-adopt-retained-gcp.sh
@@ -1667,6 +1702,47 @@ Test-NetConnection api.github.com -Port 443
 
 Inspect the GitHub Actions extension output and reauthenticate. A warning against every action repository is an editor resolver problem, not evidence that every tag is invalid.
 
+### **`You do not currently have an active account selected`**
+
+`gcloud config set account "${APPROVER_EMAIL}"` ran while the variable was empty, which clears the active account. Every later `gcloud` call (including `09`) then fails. Export the variable and select the account again:
+
+```bash
+export APPROVER_EMAIL=YOUR_WORKSPACE_SIGNER
+gcloud config set account "${APPROVER_EMAIL}"
+gcloud auth list
+```
+
+If the account shows but calls still fail, run `gcloud auth login` as that account.
+
+### **`11-review-approval.sh` prints only the usage line**
+
+`Usage: ./scripts/11-review-approval.sh approve|deny REVIEWER 'reason with at least 10 characters'` means the reviewer argument was empty (usually `APPROVER_EMAIL` not exported in this terminal) or the reason is shorter than 10 characters. Export the variable and re-run. The pending request is untouched, so retry before its `expires_at` (30 minutes after `09`).
+
+### **`Secret Payload cannot be empty`**
+
+`SLACK_WEBHOOK_URL` is not set in this terminal, so `printf` sent an empty string. Load it with `read -rsp` as in section 19, then add the version again.
+
+### **`13-release-images.sh`: `Required command not found: cosign`**
+
+Expected on a workstation. Releases run in GitHub (section 24): local keyless signing would publish your own email to the public Rekor log. Use `gh workflow run release.yml`, then `gh run download` and `14` to deploy the digests.
+
+### **`12-smoke-test-metrics.sh` prints `curl: (7) Failed to connect` and then passes**
+
+Harmless. The first health probe runs before `kubectl port-forward` is listening; the loop retries a second later.
+
+### **`kubectl wait`: `jobs.batch "...-manual-..." not found`**
+
+The job name was mistyped. Manual job names end in the Unix timestamp from creation (for example `prowler-manual-1792195188`). Copy it instead of retyping:
+
+```bash
+kubectl get jobs -n security -o name
+kubectl wait --for=condition=complete "$(kubectl get jobs -n security -o name | grep prowler-manual | tail -1)" -n security --timeout=1800s
+```
+
+### **`09` returns `PERMIT` or `broken-app` restarts without an approval**
+
+Controlled mode is still on (section 16). The `09` fixture meets every automatic threshold. Return both modes to `disabled` and restart the Governance and Remediation Agents.
+
 ### **Governed Release exits 126**
 
 Exit `126` means the runner found the script but could not execute it (missing `+x` or CRLF line endings from a Windows commit). The workflow invokes `bash scripts/13-release-images.sh` and `bash scripts/14-deploy-release-images.sh`. `.gitattributes` forces LF on `*.sh`. Re-dispatch after those files are on `main`:
@@ -1712,22 +1788,23 @@ The image scan fails on any fixable HIGH or CRITICAL finding. Exceptions live in
 
 Current exception: three Go CVEs in the upstream `kubectl` binary of the `mcp-server` image, expiring `2026-11-15`. If `13` fails with `Trivy rejected .../mcp-server@...` after that date, check for a newer kubectl 1.36 patch release. Pin it in `docker/mcp_docker.txt` (`KUBECTL_VERSION`) and remove the entries. If none is out yet, review and extend the dates deliberately.
 
-Local equivalent:
+Do not run `13` locally. It needs `cosign` (`Required command not found: cosign` otherwise), and keyless signing on a workstation signs with your own Google identity and publishes that email to the public Rekor log. Run it through the workflow:
 
 ```bash
-RELEASE_TAG=v1 \
-PROJECT_ID=class-6-5-tiqs \
-REGION=us-central1 \
-REPOSITORY=vertex-agent-lab \
-./scripts/13-release-images.sh
+gh workflow run release.yml -f tag=v1 -f deploy=false
+gh run watch $(gh run list -w release.yml -L 1 --json databaseId -q '.[0].databaseId')
 ```
 
-Deploy verified digests:
+Deploy the verified digests from your workstation. GitHub-hosted runners are not in `authorized_networks`, so the workflow's own `deploy` job cannot reach the control plane. Check the lock file against its checksum first:
 
 ```bash
+gh run download RUN_ID -n release-v1 -D release-evidence
+[[ "$(sha256sum release-evidence/image-lock.json | cut -c1-64)" == "$(cut -c1-64 release-evidence/image-lock.sha256)" ]] && echo "lock checksum OK"
 ./scripts/14-deploy-release-images.sh \
   release-evidence/image-lock.json
 ```
+
+Running `04` after a release moves the mutable `v1` tag back to unsigned local builds. The signed release is only what `14` pins by digest. The in-cluster Trivy CronJob scans `:v1`.
 
 `14` fails with `Image lock file not found` if you skip `13` (or skip downloading the GitHub Actions `release-*` artifact). Run `13` first, or copy `image-lock.json` from the workflow artifact into `release-evidence/`.
 
@@ -1925,7 +2002,11 @@ Some APIs and retained audit data may intentionally remain depending on Terrafor
 [ ] Cloud KMS approval signed with key version 12 as the Workspace signer
 [ ] BigQuery evidence listed via evidence-admin impersonation (table name from `bq ls`)
 [ ] Automated execution remains disabled or was explicitly approved
+[ ] If controlled mode was tested: action confirmed in MCP logs, both modes back to disabled
+[ ] Optional Slack: report shows "status": "sent"; reporting-agent.yaml restored to ENABLE_SLACK "false"
 [ ] GitHub CI passed
-[ ] Release evidence generated and retained
+[ ] Release evidence generated and retained (build-only run from GitHub, not local 13)
+[ ] Signed digests deployed with 14 from the downloaded artifact (lock checksum matched)
+[ ] `git checkout -- manifests/` so no controlled or Slack edits are committed
 [ ] Teardown verified when the lab is complete (`CONFIRM_TEARDOWN=yes ./scripts/15-teardown.sh`)
 ```
