@@ -490,7 +490,7 @@ hashicorp/setup-terraform@v4
 github/codeql-action/upload-sarif@v4
 ```
 
-CI pins Python `3.14`, Terraform `1.16.6`, OPA `1.21.2`, Conftest `0.71.1`, and Trivy `0.76.0`.
+CI pins Python `3.14`, Terraform `1.16.6`, OPA `1.21.2`, Conftest `0.71.1`, and Trivy `0.76.0` (the in-cluster Trivy CronJob uses the same version). Both workflows run on `ubuntu-24.04` rather than `ubuntu-latest`, which GitHub moves to Ubuntu 26.04 between 19 October and 19 November 2026 ([actions/runner-images#14748](https://github.com/actions/runner-images/issues/14748)).
 Every CI job uses checkout `@v7`; the Lint and Python jobs use setup-python `@v7`.
 
 Release (`.github/workflows/release.yml`):

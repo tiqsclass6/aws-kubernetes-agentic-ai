@@ -98,7 +98,7 @@ spec:
 
           containers:
             - name: trivy
-              image: aquasec/trivy:0.74.0
+              image: aquasec/trivy:0.76.0
               imagePullPolicy: IfNotPresent
 
               command:

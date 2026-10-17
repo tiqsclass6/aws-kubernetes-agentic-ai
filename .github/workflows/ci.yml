@@ -24,7 +24,7 @@ env:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
@@ -57,7 +57,7 @@ jobs:
   python:
     name: Python
     needs: [lint]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:
@@ -103,7 +103,7 @@ jobs:
   terraform:
     name: Terraform
     needs: [lint]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
@@ -124,7 +124,7 @@ jobs:
   policy:
     name: Policy
     needs: [lint]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
@@ -153,7 +153,7 @@ jobs:
   scan:
     name: Scan
     needs: [python, terraform, policy]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -216,7 +216,7 @@ jobs:
     name: CI
     if: ${{ !cancelled() }}
     needs: [python, terraform, policy, scan]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
 
     steps:

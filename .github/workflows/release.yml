@@ -38,7 +38,7 @@ jobs:
   # Build, scan, sign, and attest. Runs without an environment so build-only
   # releases (deploy=false) never wait for approval.
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
 
     steps:
@@ -85,7 +85,7 @@ jobs:
   deploy:
     needs: release
     if: ${{ inputs.deploy }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: production
 
