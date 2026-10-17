@@ -179,11 +179,11 @@ Do not run `01` through `15` as a numbered loop. Several scripts are nested or c
 
 2.  Create and activate the Python 3.14 virtual environment (below)
 
-3.  ./scripts/01-validate.sh          (calls 02-conftest-test.sh)
+3.  bash scripts/01-validate.sh          (calls 02-conftest-test.sh)
 
 4.  terraform -chdir=terraform init
 
-5.  ./scripts/03-adopt-retained-gcp.sh
+5.  bash scripts/03-adopt-retained-gcp.sh
        only if WIF, KMS, or an ERROR node pool already exists
        (requires step 4 first; does not import the GKE cluster or VPC)
 
@@ -194,24 +194,24 @@ Do not run `01` through `15` as a numbered loop. Several scripts are nested or c
 
 9.  GitHub variables + production environment (optional until release)
 
-10. ./scripts/04-build-images.sh
+10. bash scripts/04-build-images.sh
 
-11. ./scripts/05-install-falco.sh
+11. bash scripts/05-install-falco.sh
 
-12. ./scripts/08-deploy.sh            (calls 06 and 07)
+12. bash scripts/08-deploy.sh            (calls 06 and 07)
 
-13. ./scripts/09-test-governance.sh
+13. bash scripts/09-test-governance.sh
 
-14. ./scripts/10-test-pipeline.sh
+14. bash scripts/10-test-pipeline.sh
 
-15. ./scripts/11-review-approval.sh   (when a request is pending)
+15. bash scripts/11-review-approval.sh   (when a request is pending)
 
-16. ./scripts/12-smoke-test-metrics.sh
+16. bash scripts/12-smoke-test-metrics.sh
 
-17. ./scripts/13-release-images.sh and 14-deploy-release-images.sh
+17. bash scripts/13-release-images.sh and 14-deploy-release-images.sh
        or GitHub workflow release.yml
 
-18. CONFIRM_TEARDOWN=yes ./scripts/15-teardown.sh
+18. CONFIRM_TEARDOWN=yes bash scripts/15-teardown.sh
        when the lab is finished
 ```
 
@@ -261,7 +261,7 @@ python -m pip install -r python/requirements-test.txt \
 Run the complete validation suite:
 
 ```bash
-./scripts/01-validate.sh
+bash scripts/01-validate.sh
 ```
 
 The script performs eight steps:
@@ -274,7 +274,7 @@ The script performs eight steps:
 5/8  OPA governance policy tests
 6/8  Terraform fmt (writes, then fmt -check)
 7/8  terraform init -backend=false and validate
-8/8  ./scripts/02-conftest-test.sh
+8/8  bash scripts/02-conftest-test.sh
 ```
 
 `01-validate.sh` does not parse workflow YAML, does not scan for generated Terraform files, and does not check GitHub action pins. Those checks are not part of the local script. CI parses Kubernetes YAML in the Lint job and runs Trivy separately.
@@ -282,7 +282,7 @@ The script performs eight steps:
 Manual Conftest equivalent is the numbered script, not a hand-picked manifest list. `02-conftest-test.sh` tests every top-level `manifests/*.yaml` except `broken-app.yaml` and `postgres-secret.example.yaml`, then asserts that `broken-app.yaml` fails.
 
 ```bash
-./scripts/02-conftest-test.sh
+bash scripts/02-conftest-test.sh
 ```
 
 Other manual equivalents:
@@ -324,7 +324,7 @@ gcloud container clusters list --project=class-6-5-tiqs
 
 - Empty state and no cluster: continue to plan and apply.
 - Empty state and `vertex-agent-lab` already exists: do not apply a create plan. Import the live stack or destroy the leftover cluster first. Apply against empty state will 409 on the cluster name.
-- WIF pool, KMS ring, or ERROR node pool already in GCP: run `./scripts/03-adopt-retained-gcp.sh`, then plan.
+- WIF pool, KMS ring, or ERROR node pool already in GCP: run `bash scripts/03-adopt-retained-gcp.sh`, then plan.
 
 Create a reviewed plan and apply it:
 
@@ -342,7 +342,7 @@ and retry. Do not treat that error as a broken GitHub Actions data source.
 If apply fails because a custom IAM role is deletion-pending, a Workload Identity pool or KMS key ring already exists, or the GKE node pool is in `ERROR`, adopt the leftovers and retry:
 
 ```bash
-./scripts/03-adopt-retained-gcp.sh
+bash scripts/03-adopt-retained-gcp.sh
 terraform -chdir=terraform plan -out=agentic.tfplan
 terraform -chdir=terraform apply agentic.tfplan
 ```
@@ -535,7 +535,7 @@ PROJECT_ID=class-6-5-tiqs \
 REGION=us-central1 \
 REPOSITORY=vertex-agent-lab \
 TAG=v1 \
-./scripts/04-build-images.sh
+bash scripts/04-build-images.sh
 ```
 
 Images:
@@ -569,7 +569,7 @@ gcloud artifacts docker images list \
 ## **8. Install Falco**
 
 ```bash
-./scripts/05-install-falco.sh
+bash scripts/05-install-falco.sh
 ```
 
 The script installs Helm chart `falcosecurity/falco` version `9.1.0` into namespace `falco` (created by Helm, not by `manifests/namespaces.yaml`). Falco posts runtime events to the Event Aggregator after that Deployment exists.
@@ -591,7 +591,7 @@ Falco is a runtime telemetry source. Trivy and Prowler run as scheduled scanner 
 Run the canonical deployment script:
 
 ```bash
-./scripts/08-deploy.sh
+bash scripts/08-deploy.sh
 ```
 
 The script performs these operations in order:
@@ -622,14 +622,14 @@ Automated remediation remains disabled by default.
 The deployment script calls this automatically:
 
 ```bash
-./scripts/06-create-demo-secret.sh
+bash scripts/06-create-demo-secret.sh
 ```
 
 To supply a specific password without committing it:
 
 ```bash
 POSTGRES_PASSWORD='replace-at-runtime' \
-./scripts/06-create-demo-secret.sh
+bash scripts/06-create-demo-secret.sh
 ```
 
 The repository contains only:
@@ -778,7 +778,7 @@ Only the Remediation Agent should have the MCP client identity.
 Rotate certificates:
 
 ```bash
-./scripts/07-generate-mcp-mtls.sh
+bash scripts/07-generate-mcp-mtls.sh
 ```
 
 Then restart affected workloads:
@@ -848,7 +848,7 @@ gcloud pubsub subscriptions pull agent-events-dlq-sub \
 Run the deterministic governance smoke test:
 
 ```bash
-./scripts/09-test-governance.sh
+bash scripts/09-test-governance.sh
 ```
 
 The synthetic event recommends restarting `app01/broken-app`, but default automation is disabled. Expected result:
@@ -877,7 +877,7 @@ gcloud pubsub subscriptions pull governance-decisions-debug-sub \
 ## **14. Run the End-to-End Governed Pipeline Test**
 
 ```bash
-./scripts/10-test-pipeline.sh
+bash scripts/10-test-pipeline.sh
 ```
 
 The script publishes two correlated findings to `security-findings` and waits for a final report on `incident-reports-debug-sub`.
@@ -931,7 +931,7 @@ The active account must be the Workspace signer in `approval_signer_members` (`u
 `11-review-approval.sh` only signs a message that is already on `approval-requests-review-sub`. That message is created when the Governance Agent emits `REQUIRE_APPROVAL`. Run the governance smoke test first, then sign:
 
 ```bash
-./scripts/09-test-governance.sh
+bash scripts/09-test-governance.sh
 ```
 
 Wait until that script prints `Governance smoke test passed`. Then sign immediately. Do **not** `gcloud pubsub subscriptions pull` first. A pull without `--auto-ack` still leases the message for 600 seconds, so `11-review-approval.sh` will report `no pending approval request was available`.
@@ -948,12 +948,12 @@ If describe returns `PERMISSION_DENIED`, the active account is not the Terraform
 
 If `09` already passed and the review script is still empty, mint a new request by re-running `09`, then run `11` in the same shell.
 
-`11` signs the oldest pending request, not necessarily the one from your latest `09`. Check `incident_id` and `expires_at` in the displayed binding before you type `y`. In controlled mode (section 16), approving any pending request executes it.
+`11` pulls whichever pending request Pub/Sub delivers. Pull order is not guaranteed: in the 17 Oct 2026 run, with two `09` requests pending, the first `11` got the newer one. Check `incident_id` (it contains the `09` run ID) and `expires_at` in the displayed binding before you type `y`; answering `N` leaves the request pending for the next `11`. In controlled mode (section 16), approving any pending request executes it.
 
 Approve as the live Workspace signer (`$APPROVER_EMAIL`), not the documentation placeholder `YOUR_WORKSPACE_ACCOUNT` and not `analyst@example.com`:
 
 ```bash
-./scripts/11-review-approval.sh \
+bash scripts/11-review-approval.sh \
   approve \
   "${APPROVER_EMAIL}" \
   "Approved after validating the incident evidence and proposed target."
@@ -962,7 +962,7 @@ Approve as the live Workspace signer (`$APPROVER_EMAIL`), not the documentation 
 Deny:
 
 ```bash
-./scripts/11-review-approval.sh \
+bash scripts/11-review-approval.sh \
   deny \
   "${APPROVER_EMAIL}" \
   "Denied because the requested action needs additional investigation."
@@ -1002,7 +1002,7 @@ KMS_KEYRING=agentic-governance \
 KMS_KEY=approval-signing \
 KMS_KEY_VERSION=12 \
 APPROVAL_TTL_SECONDS=600 \
-./scripts/11-review-approval.sh \
+bash scripts/11-review-approval.sh \
   approve \
   "${APPROVER_EMAIL}" \
   "Approved after reviewing the correlated security evidence."
@@ -1085,7 +1085,16 @@ git checkout -- manifests/governance-agent.yaml manifests/remediation-agent.yaml
 kubectl apply -f manifests/governance-agent.yaml -f manifests/remediation-agent.yaml
 kubectl rollout restart deployment/governance-agent -n ai-governance
 kubectl rollout restart deployment/remediation-agent -n ai-agents
+kubectl rollout status deployment/governance-agent -n ai-governance --timeout=300s
+kubectl rollout status deployment/remediation-agent -n ai-agents --timeout=300s
 kubectl exec -n ai-agents deploy/remediation-agent -- printenv EXECUTION_MODE
+```
+
+Wait for both rollouts before the `printenv` check; run it immediately after the restart and it reads the old pod, which still says `controlled`. The ConfigMaps are the source of truth:
+
+```bash
+kubectl get configmap governance-agent-config -n ai-governance -o jsonpath='{.data.AUTOMATION_MODE}{"\n"}'
+kubectl get configmap remediation-agent-config -n ai-agents -o jsonpath='{.data.EXECUTION_MODE}{"\n"}'
 ```
 
 ---
@@ -1108,7 +1117,7 @@ kubectl get pdb -A
 Run the metrics smoke test:
 
 ```bash
-./scripts/12-smoke-test-metrics.sh
+bash scripts/12-smoke-test-metrics.sh
 ```
 
 Representative metrics:
@@ -1368,6 +1377,8 @@ export CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT=evidence-admin@class-6-5-tiqs.i
 
 ```bash
 TABLE="$(bq ls --format=prettyjson class-6-5-tiqs:agentic_governance_evidence | python -c "import json,sys; print(next(t['tableReference']['tableId'] for t in json.load(sys.stdin) if str(t['tableReference']['tableId']).startswith('stdout_')))")"
+: "${TABLE:?bq ls failed; fix auth and re-run the TABLE line}"
+echo "Table: ${TABLE}"
 bq query --nouse_legacy_sql --max_rows=20 \
 "SELECT timestamp, jsonPayload.component, jsonPayload.event, jsonPayload.event_type, jsonPayload.incident_id, jsonPayload.governance_decision_id, jsonPayload.decision, jsonPayload.status, jsonPayload.policy.decision AS policy_decision, jsonPayload.action.action AS recommended_action FROM \`class-6-5-tiqs.agentic_governance_evidence.${TABLE}\` WHERE jsonPayload.component IS NOT NULL ORDER BY timestamp DESC LIMIT 20"
 ```
@@ -1434,7 +1445,7 @@ approval verification before disabling the prior version.
 ### **MCP Certificates**
 
 ```bash
-./scripts/07-generate-mcp-mtls.sh
+bash scripts/07-generate-mcp-mtls.sh
 
 kubectl rollout restart deployment/mcp-gateway -n mcp-gateway
 kubectl rollout restart deployment/mcp-server -n mcp
@@ -1460,7 +1471,7 @@ These are leftovers from a previous destroy or a partial apply. They are not ran
 | **Node pool `ERROR`**                                         | Failed bootstrap or datapath mismatch                                                       | Cluster uses Dataplane V2; script deletes the ERROR pool                                                              |
 
 ```bash
-./scripts/03-adopt-retained-gcp.sh
+bash scripts/03-adopt-retained-gcp.sh
 terraform -chdir=terraform plan -out=agentic.tfplan
 terraform -chdir=terraform apply agentic.tfplan
 ```
@@ -1743,6 +1754,32 @@ kubectl wait --for=condition=complete "$(kubectl get jobs -n security -o name | 
 
 Controlled mode is still on (section 16). The `09` fixture meets every automatic threshold. Return both modes to `disabled` and restart the Governance and Remediation Agents.
 
+### **`printenv EXECUTION_MODE` still prints `controlled` after reverting**
+
+`kubectl exec deploy/remediation-agent` picked a pod from before the restart. Wait for `kubectl rollout status deployment/remediation-agent -n ai-agents`, then check again, or read the ConfigMap (section 16). The ConfigMap is what the new pods load.
+
+### **`03`: `Error acquiring the state lock` / `Could not import ...`, then apply fails with WIF pool or KeyRing `409`**
+
+Another Terraform command held the GCS state lock while `03` ran. In the 17 Oct 2026 run, a `plan`/`apply` started a minute before `03`: every import failed, and the apply, planned against empty state (`193 to add` instead of about 188), built the cluster and then failed with `409 Requested entity already exists` on `google_iam_workload_identity_pool.github_actions` and `google_kms_key_ring.governance`. Retained resources cannot be recreated, so nothing was lost.
+
+`03` now exits non-zero when any import fails. Run Terraform commands one at a time, in order: `03`, then `plan`, then `apply`. To recover, let the other command finish (or cancel it), confirm the lock is gone, then re-run:
+
+```bash
+bash scripts/03-adopt-retained-gcp.sh
+terraform -chdir=terraform plan -out=agentic.tfplan   # expect the remaining creates plus small in-place KMS label changes
+terraform -chdir=terraform apply agentic.tfplan
+```
+
+Use `terraform -chdir=terraform force-unlock LOCK_ID` only if no Terraform process is still running (a crashed or killed run).
+
+### **`04`: `failed commit on ref "layer-sha256:..."`: `net/http: timeout awaiting response headers`**
+
+A transient Artifact Registry upload timeout on a large layer. Re-run `04`; layers already pushed are reused, so the second run is fast.
+
+### **BigQuery: `Access Denied: Table class-6-5-tiqs:class-6-5-tiqs.agentic_governance_evidence`**
+
+The table name in the query is empty. `TABLE` comes from `bq ls`; if that call failed (for example `You do not currently have an active account selected`), `TABLE` is blank and the query targets the dataset itself, which reads as a permission error. Fix auth (`gcloud auth login`), re-run the `TABLE=` line, and check `echo "${TABLE}"` prints `stdout_YYYYMMDD` before querying. The `evidence-admin` token-creator and `bigquery.jobUser` bindings are created by Terraform; you do not need to add them by hand.
+
 ### **Governed Release exits 126**
 
 Exit `126` means the runner found the script but could not execute it (missing `+x` or CRLF line endings from a Windows commit). The workflow invokes `bash scripts/13-release-images.sh` and `bash scripts/14-deploy-release-images.sh`. `.gitattributes` forces LF on `*.sh`. Re-dispatch after those files are on `main`:
@@ -1800,7 +1837,7 @@ Deploy the verified digests from your workstation. GitHub-hosted runners are not
 ```bash
 gh run download RUN_ID -n release-v1 -D release-evidence
 [[ "$(sha256sum release-evidence/image-lock.json | cut -c1-64)" == "$(cut -c1-64 release-evidence/image-lock.sha256)" ]] && echo "lock checksum OK"
-./scripts/14-deploy-release-images.sh \
+bash scripts/14-deploy-release-images.sh \
   release-evidence/image-lock.json
 ```
 
@@ -1830,7 +1867,7 @@ Canonical teardown:
 ```bash
 unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
 gcloud config unset auth/impersonate_service_account
-CONFIRM_TEARDOWN=yes ./scripts/15-teardown.sh
+CONFIRM_TEARDOWN=yes bash scripts/15-teardown.sh
 ```
 
 The script does the following:
@@ -1985,7 +2022,7 @@ Some APIs and retained audit data may intentionally remain depending on Terrafor
 [ ] Administrator CIDR updated
 [ ] Approval signer is a Workspace user in the allowed org domain
 [ ] Python test deps installed (`requirements-test.txt` + `requirements-approval-agent.txt`)
-[ ] Validation passed (`./scripts/01-validate.sh`)
+[ ] Validation passed (`bash scripts/01-validate.sh`)
 [ ] Terraform initialized against gs://tiqs-kubernetes/agentic/terraform/state
 [ ] State vs live GCP checked; `03-adopt-retained-gcp.sh` only for WIF/KMS/ERROR pool
 [ ] Terraform plan reviewed and applied (`terraform apply agentic.tfplan`)
@@ -2008,5 +2045,5 @@ Some APIs and retained audit data may intentionally remain depending on Terrafor
 [ ] Release evidence generated and retained (build-only run from GitHub, not local 13)
 [ ] Signed digests deployed with 14 from the downloaded artifact (lock checksum matched)
 [ ] `git checkout -- manifests/` so no controlled or Slack edits are committed
-[ ] Teardown verified when the lab is complete (`CONFIRM_TEARDOWN=yes ./scripts/15-teardown.sh`)
+[ ] Teardown verified when the lab is complete (`CONFIRM_TEARDOWN=yes bash scripts/15-teardown.sh`)
 ```

@@ -737,7 +737,7 @@ gcloud pubsub subscriptions describe approval-requests-review-sub \
   --format='yaml(name,topic,ackDeadlineSeconds)'
 ```
 
-Review and sign the next request. The script signs the oldest pending request, which may come from an earlier `09` run, so check the displayed `incident_id` before you confirm:
+Review and sign the next request. The script pulls whichever pending request Pub/Sub delivers, which is not necessarily the newest or the oldest, and may come from an earlier `09` run. Check the displayed `incident_id` (it contains the `09` run ID) before you confirm, and answer `N` to leave a request pending:
 
 ```bash
 ./scripts/11-review-approval.sh \
@@ -803,7 +803,7 @@ kubectl rollout status deployment/remediation-agent \
 
 Enabling these flags does not bypass the policy, approval, replay, allowlist, mTLS, MCP, or RBAC controls. It does let policy approve some fixes without a human: a HIGH incident with confidence ≥ 0.95, low risk, at least 3 signals, 2 sources, and 3 evidence items runs automatically. The `09` fixture meets every threshold, so `09` restarts `broken-app` in controlled mode and fails its `REQUIRE_APPROVAL` check.
 
-Confirm the action, then return to fail-closed and keep the manifests out of your commit:
+Run `09` after the restart, confirm the action, then return to fail-closed and keep the manifests out of your commit. The MCP log shows a restart only if an incident arrived while controlled mode was live:
 
 ```bash
 kubectl logs -n mcp deploy/mcp-server --since=1h | grep -i restart
@@ -811,6 +811,8 @@ git checkout -- manifests/governance-agent.yaml manifests/remediation-agent.yaml
 kubectl apply -f manifests/governance-agent.yaml -f manifests/remediation-agent.yaml
 kubectl rollout restart deployment/governance-agent -n ai-governance
 kubectl rollout restart deployment/remediation-agent -n ai-agents
+kubectl rollout status deployment/remediation-agent -n ai-agents --timeout=300s
+kubectl get configmap remediation-agent-config -n ai-agents -o jsonpath='{.data.EXECUTION_MODE}{"\n"}'
 ```
 
 ## **Observability and Evidence**

@@ -19,6 +19,8 @@ KMS_KEYRING_ID="${KMS_KEYRING_ID:-agentic-governance}"
 KMS_KEY_ID="${KMS_KEY_ID:-approval-signing}"
 KMS_CMEK_KEY_ID="${KMS_CMEK_KEY_ID:-lab-cmek}"
 
+FAILED_IMPORTS=()
+
 tf() {
   terraform -chdir="${TF_DIR}" "$@"
 }
@@ -36,7 +38,10 @@ import_if_missing() {
   if tf import "${address}" "${import_id}"; then
     success "Imported ${address}."
   else
+    # Keep going so undeletes and the CMEK primary still run, but fail at the
+    # end: a plan without these imports tries to recreate retained resources.
     warn "Could not import ${address}."
+    FAILED_IMPORTS+=("${address}")
   fi
 }
 
@@ -234,6 +239,12 @@ if gcloud container node-pools describe "${NODE_POOL}" \
   fi
 else
   log "Node pool ${NODE_POOL} was not found."
+fi
+
+if (( ${#FAILED_IMPORTS[@]} > 0 )); then
+  error "Imports failed: ${FAILED_IMPORTS[*]}"
+  error "Do not plan or apply yet. If Terraform reported 'Error acquiring the state lock', wait for the other Terraform command to finish (or cancel it), then re-run this script."
+  die "Adopt incomplete."
 fi
 
 success_section "Adopt complete"
