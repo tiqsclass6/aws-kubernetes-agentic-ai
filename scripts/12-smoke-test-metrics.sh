@@ -24,7 +24,8 @@ trap 'kill "${PF_PID}" >/dev/null 2>&1 || true' EXIT
 
 READY=false
 for _ in $(seq 1 30); do
-  if curl -fsS "http://127.0.0.1:${LOCAL_PORT}/healthz" >/dev/null; then
+  # Quiet while port-forward starts; the first probes are expected to fail.
+  if curl -fs "http://127.0.0.1:${LOCAL_PORT}/healthz" >/dev/null 2>&1; then
     READY=true
     break
   fi

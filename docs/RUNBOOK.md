@@ -1714,9 +1714,9 @@ gcloud auth list
 
 If the account shows but calls still fail, run `gcloud auth login` as that account.
 
-### **`11-review-approval.sh` prints only the usage line**
+### **`11-review-approval.sh`: `REVIEWER is empty` or `Reason must be at least 10 characters`**
 
-`Usage: ./scripts/11-review-approval.sh approve|deny REVIEWER 'reason with at least 10 characters'` means the reviewer argument was empty (usually `APPROVER_EMAIL` not exported in this terminal) or the reason is shorter than 10 characters. Export the variable and re-run. The pending request is untouched, so retry before its `expires_at` (30 minutes after `09`).
+`REVIEWER is empty` means `APPROVER_EMAIL` is not exported in this terminal. The reason check prints the length it received. A bare usage line means the first argument was not `approve` or `deny`. Fix the argument and re-run. The pending request is untouched, so retry before its `expires_at` (30 minutes after `09`).
 
 ### **`Secret Payload cannot be empty`**
 
@@ -1728,7 +1728,7 @@ Expected on a workstation. Releases run in GitHub (section 24): local keyless si
 
 ### **`12-smoke-test-metrics.sh` prints `curl: (7) Failed to connect` and then passes**
 
-Harmless. The first health probe runs before `kubectl port-forward` is listening; the loop retries a second later.
+Harmless, and silenced since 17 Oct 2026. The first health probe runs before `kubectl port-forward` is listening; the loop retries a second later. If the script fails with `Health check did not succeed`, check the port-forward log in `/tmp/agent-port-forward.log`.
 
 ### **`kubectl wait`: `jobs.batch "...-manual-..." not found`**
 

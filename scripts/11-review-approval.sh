@@ -23,7 +23,14 @@ usage() {
 }
 
 [[ "${DECISION}" == "approve" || "${DECISION}" == "deny" ]] || usage
-[[ -n "${REVIEWER}" && ${#REASON} -ge 10 ]] || usage
+if [[ -z "${REVIEWER}" ]]; then
+  error "REVIEWER is empty. Export APPROVER_EMAIL in this terminal and pass \"\$APPROVER_EMAIL\"."
+  usage
+fi
+if (( ${#REASON} < 10 )); then
+  error "Reason must be at least 10 characters (got ${#REASON})."
+  usage
+fi
 
 require_command gcloud
 require_command python
