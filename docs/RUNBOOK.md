@@ -305,7 +305,7 @@ terraform -chdir=terraform validate
 Initialize the real GCS backend:
 
 ```bash
-terraform -chdir=terraform init
+terraform -chdir=terraform init -upgrade
 ```
 
 Format and validate:
@@ -914,16 +914,21 @@ kubectl logs -n ai-agents deployment/reporting-agent --tail=200
 Clear BigQuery impersonation first. Section 21 sets `CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT=evidence-admin@...`. That service account cannot pull `approval-requests-review-sub` or publish
 `approval-decisions`, so `11-review-approval.sh` fails with Pub/Sub `PERMISSION_DENIED`.
 
-Variables do not carry over between terminals. Export `APPROVER_EMAIL` first; the `:?` guard stops before an empty value clears your active gcloud account.
+Variables do not carry over between terminals. Export `APPROVER_EMAIL` first, replacing `YOUR_WORKSPACE_SIGNER` with the real address. The `if` only switches accounts when the value looks like an email: an empty value or the literal placeholder would otherwise become your active gcloud account, every later `gcloud` call would fail, and the placeholder would be recorded as the reviewer of any decision you sign.
 
 ```bash
-export APPROVER_EMAIL=YOUR_WORKSPACE_SIGNER
-: "${APPROVER_EMAIL:?export APPROVER_EMAIL first}"
-unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
-gcloud config unset auth/impersonate_service_account
-gcloud config set account "${APPROVER_EMAIL}"
-gcloud auth list
+export APPROVER_EMAIL=YOUR_WORKSPACE_SIGNER   # replace with your Workspace signer's address
+if [[ "${APPROVER_EMAIL:-}" == *@* ]]; then
+  unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
+  gcloud config unset auth/impersonate_service_account
+  gcloud config set account "${APPROVER_EMAIL}"
+  gcloud auth list
+else
+  echo "APPROVER_EMAIL must be your Workspace signer's address, not '${APPROVER_EMAIL:-}'"
+fi
 ```
+
+`11` refuses to sign unless the reviewer you pass matches the active gcloud account, because that is the identity that holds `signerVerifier` on the key.
 
 The active account must be the Workspace signer in `approval_signer_members` (`user:$APPROVER_EMAIL`). Terraform grants that identity `roles/pubsub.subscriber` and `roles/pubsub.viewer` on
 `approval-requests-review-sub`, `roles/pubsub.publisher` on `approval-decisions`, and `roles/cloudkms.signerVerifier` on `approval-signing`. A Gmail project Owner can often pull Pub/Sub, but it cannot sign unless it is also in `approval_signer_members`.
@@ -1184,15 +1189,6 @@ prowler-manual-*                      first pull of prowlercloud/prowler:5.35.0 
 Job activeDeadlineSeconds is 7200
 ```
 
-Do not `kubectl logs` while the Prowler pod is `ContainerCreating`. That returns `container "prowler" ... is waiting to start`. Wait until both containers are Running:
-
-```bash
-kubectl get pods -n security -o wide
-kubectl logs -n security -l job-name=prowler-manual-JOBID -c prowler --tail=50
-```
-
-Healthy Prowler output includes Workload Identity as `prowler-sa@class-6-5-tiqs.iam.gserviceaccount.com` and `Executing 109 checks, please wait...`. The publisher sidecar waits on `/reports/.done` until the scan finishes.
-
 Wait for completion instead of polling by eye:
 
 ```bash
@@ -1202,6 +1198,15 @@ kubectl wait --for=condition=complete \
 kubectl wait --for=condition=complete \
   job/prowler-manual-TIMESTAMP -n security --timeout=1800s
 ```
+
+Do not `kubectl logs` while the Prowler pod is `ContainerCreating`. That returns `container "prowler" ... is waiting to start`. Wait until both containers are Running:
+
+```bash
+kubectl get pods -n security -o wide
+kubectl logs -n security -l job-name=prowler-manual-JOBID -c prowler --tail=200
+```
+
+Healthy Prowler output includes Workload Identity as `prowler-sa@class-6-5-tiqs.iam.gserviceaccount.com` and `Executing 109 checks, please wait...`. The publisher sidecar waits on `/reports/.done` until the scan finishes.
 
 Inspect. Copy the job name from `kubectl get jobs` — do not wrap it in angle brackets (`<id>`). Git Bash treats `<file>` as redirection and will look for a file named `id`.
 
@@ -1377,10 +1382,13 @@ export CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT=evidence-admin@class-6-5-tiqs.i
 
 ```bash
 TABLE="$(bq ls --format=prettyjson class-6-5-tiqs:agentic_governance_evidence | python -c "import json,sys; print(next(t['tableReference']['tableId'] for t in json.load(sys.stdin) if str(t['tableReference']['tableId']).startswith('stdout_')))")"
-: "${TABLE:?bq ls failed; fix auth and re-run the TABLE line}"
-echo "Table: ${TABLE}"
-bq query --nouse_legacy_sql --max_rows=20 \
-"SELECT timestamp, jsonPayload.component, jsonPayload.event, jsonPayload.event_type, jsonPayload.incident_id, jsonPayload.governance_decision_id, jsonPayload.decision, jsonPayload.status, jsonPayload.policy.decision AS policy_decision, jsonPayload.action.action AS recommended_action FROM \`class-6-5-tiqs.agentic_governance_evidence.${TABLE}\` WHERE jsonPayload.component IS NOT NULL ORDER BY timestamp DESC LIMIT 20"
+if [[ -n "${TABLE}" ]]; then
+  echo "Table: ${TABLE}"
+  bq query --nouse_legacy_sql --max_rows=20 \
+  "SELECT timestamp, jsonPayload.component, jsonPayload.event, jsonPayload.event_type, jsonPayload.incident_id, jsonPayload.governance_decision_id, jsonPayload.decision, jsonPayload.status, jsonPayload.policy.decision AS policy_decision, jsonPayload.action.action AS recommended_action FROM \`class-6-5-tiqs.agentic_governance_evidence.${TABLE}\` WHERE jsonPayload.component IS NOT NULL ORDER BY timestamp DESC LIMIT 20"
+else
+  echo "bq ls failed, so TABLE is empty; run gcloud auth login and re-run this block"
+fi
 ```
 
 There is no `jsonPayload.result`. BigQuery typed `jsonPayload` from the sink schema. Useful columns are `event`, `event_type`, `decision`, `status`, `policy.decision`, and `action.action`.
@@ -1718,9 +1726,15 @@ Inspect the GitHub Actions extension output and reauthenticate. A warning agains
 `gcloud config set account "${APPROVER_EMAIL}"` ran while the variable was empty, which clears the active account. Every later `gcloud` call (including `09`) then fails. Export the variable and select the account again:
 
 ```bash
-export APPROVER_EMAIL=YOUR_WORKSPACE_SIGNER
-gcloud config set account "${APPROVER_EMAIL}"
-gcloud auth list
+export APPROVER_EMAIL=YOUR_WORKSPACE_SIGNER   # replace with your Workspace signer's address
+if [[ "${APPROVER_EMAIL:-}" == *@* ]]; then
+  unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
+  gcloud config unset auth/impersonate_service_account
+  gcloud config set account "${APPROVER_EMAIL}"
+  gcloud auth list
+else
+  echo "APPROVER_EMAIL must be your Workspace signer's address, not '${APPROVER_EMAIL:-}'"
+fi
 ```
 
 If the account shows but calls still fail, run `gcloud auth login` as that account.
@@ -1780,6 +1794,30 @@ A transient Artifact Registry upload timeout on a large layer. Re-run `04`; laye
 
 The table name in the query is empty. `TABLE` comes from `bq ls`; if that call failed (for example `You do not currently have an active account selected`), `TABLE` is blank and the query targets the dataset itself, which reads as a permission error. Fix auth (`gcloud auth login`), re-run the `TABLE=` line, and check `echo "${TABLE}"` prints `stdout_YYYYMMDD` before querying. The `evidence-admin` token-creator and `bigquery.jobUser` bindings are created by Terraform; you do not need to add them by hand.
 
+
+### **`YOUR_WORKSPACE_SIGNER` shows up as an account, a user, or a reviewer**
+
+`APPROVER_EMAIL` was exported with the literal placeholder. In the 17 Oct 2026 run this caused, in order: `gcloud config set account` made a nonexistent account active, so `09` and `bq` failed with `Your current active account [YOUR_WORKSPACE_SIGNER] does not have any valid credentials`; `gcloud auth login "${APPROVER_EMAIL}"` was rejected because the browser returned a different account; IAM failed with `User YOUR_WORKSPACE_SIGNER does not exist`; and two KMS-signed decisions recorded `YOUR_WORKSPACE_SIGNER` as the reviewer in the audit trail. Export the real address and use the guarded block in section 15. `11` now refuses a reviewer that is not an email address or does not match the active gcloud account.
+
+### **`14` times out and pods show `ImagePullBackOff`**
+
+The lock file names digests that no longer exist. Teardown deletes every Artifact Registry package, so a `release-evidence/` left from an earlier release still passes its checksum but points at deleted images. This happens when `gh run download` fails (a job ID instead of a run ID, or a failed release run with no artifact) and the old folder is still there. The old pods keep serving because the rollout never completes. Roll the Deployments back:
+
+```bash
+for nd in shared-services/event-aggregator ai-agents/observer-agent ai-agents/correlation-agent ai-agents/ir-analyst-agent ai-governance/governance-agent ai-governance/approval-agent ai-agents/remediation-agent ai-agents/reporting-agent mcp/mcp-server app01/broken-app; do kubectl rollout undo "deployment/${nd#*/}" -n "${nd%/*}"; done
+```
+
+Then download the lock from a successful run with the chained command in section 24. `14` now checks every digest before it changes anything.
+
+### **Governed Release fails at `Trivy rejected .../mcp-server@sha256:...`**
+
+A new HIGH or CRITICAL CVE with a fix is in the image, usually in the upstream `kubectl` binary. The job log does not list the CVE, and the failed step uploads no evidence. Scan the `v1` image locally with the gate's own settings to see it:
+
+```bash
+MSYS_NO_PATHCONV=1 docker run --rm -v //var/run/docker.sock:/var/run/docker.sock -v "$(cygpath -w "$PWD/.trivyignore-images.yaml"):/policy/.trivyignore-images.yaml:ro" aquasec/trivy:0.76.0 image --quiet --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /policy/.trivyignore-images.yaml us-central1-docker.pkg.dev/class-6-5-tiqs/vertex-agent-lab/mcp-server:v1
+```
+
+If the finding is in `usr/local/bin/kubectl`, first check for a newer kubectl patch (`https://dl.k8s.io/release/stable-1.36.txt`). If there is none, add a path-scoped entry with an `expired_at` to `.trivyignore-images.yaml`, as was done for `CVE-2026-56851` on 17 Oct 2026. Anything outside kubectl gets fixed in the image instead.
 ### **Governed Release exits 126**
 
 Exit `126` means the runner found the script but could not execute it (missing `+x` or CRLF line endings from a Windows commit). The workflow invokes `bash scripts/13-release-images.sh` and `bash scripts/14-deploy-release-images.sh`. `.gitattributes` forces LF on `*.sh`. Re-dispatch after those files are on `main`:
@@ -1823,7 +1861,7 @@ Deployment uses immutable digests from `image-lock.json`, not mutable image tags
 
 The image scan fails on any fixable HIGH or CRITICAL finding. Exceptions live in `.trivyignore-images.yaml` (not the repository-scan `.trivyignore.yaml`). Each entry is scoped to a file path and has an `expired_at` date. The scan records suppressed findings as `ignored` in `release-evidence/trivy/*.json`.
 
-Current exception: three Go CVEs in the upstream `kubectl` binary of the `mcp-server` image, expiring `2026-11-15`. If `13` fails with `Trivy rejected .../mcp-server@...` after that date, check for a newer kubectl 1.36 patch release. Pin it in `docker/mcp_docker.txt` (`KUBECTL_VERSION`) and remove the entries. If none is out yet, review and extend the dates deliberately.
+Current exception: four CVEs in the upstream `kubectl` binary of the `mcp-server` image (three in the Go standard library and `x/net`, plus `CVE-2026-56851` in `golang.org/x/text`, added 17 Oct 2026), expiring `2026-11-15`. If `13` fails with `Trivy rejected .../mcp-server@...` after that date, check for a newer kubectl 1.36 patch release. Pin it in `docker/mcp_docker.txt` (`KUBECTL_VERSION`) and remove the entries. If none is out yet, review and extend the dates deliberately.
 
 Do not run `13` locally. It needs `cosign` (`Required command not found: cosign` otherwise), and keyless signing on a workstation signs with your own Google identity and publishes that email to the public Rekor log. Run it through the workflow:
 
@@ -1832,14 +1870,13 @@ gh workflow run release.yml -f tag=v1 -f deploy=false
 gh run watch $(gh run list -w release.yml -L 1 --json databaseId -q '.[0].databaseId')
 ```
 
-Deploy the verified digests from your workstation. GitHub-hosted runners are not in `authorized_networks`, so the workflow's own `deploy` job cannot reach the control plane. Check the lock file against its checksum first:
+Deploy the verified digests from your workstation. GitHub-hosted runners are not in `authorized_networks`, so the workflow's own `deploy` job cannot reach the control plane. Only use a run whose `release` job succeeded (a failed run uploads no artifact), and pass the run ID from `gh run list -w release.yml`, not a job ID. Clear the old evidence first and chain the steps, so a failed download cannot fall through to a stale lock file:
 
 ```bash
-gh run download RUN_ID -n release-v1 -D release-evidence
-[[ "$(sha256sum release-evidence/image-lock.json | cut -c1-64)" == "$(cut -c1-64 release-evidence/image-lock.sha256)" ]] && echo "lock checksum OK"
-bash scripts/14-deploy-release-images.sh \
-  release-evidence/image-lock.json
+rm -rf release-evidence && gh run download RUN_ID -n release-v1 -D release-evidence && [[ "$(sha256sum release-evidence/image-lock.json | cut -c1-64)" == "$(cut -c1-64 release-evidence/image-lock.sha256)" ]] && bash scripts/14-deploy-release-images.sh release-evidence/image-lock.json
 ```
+
+The checksum proves the lock file was not altered, not that it is current. `14` therefore checks that every digest exists in Artifact Registry before it changes any Deployment.
 
 Running `04` after a release moves the mutable `v1` tag back to unsigned local builds. The signed release is only what `14` pins by digest. The in-cluster Trivy CronJob scans `:v1`.
 

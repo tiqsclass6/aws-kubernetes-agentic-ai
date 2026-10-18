@@ -27,6 +27,10 @@ if [[ -z "${REVIEWER}" ]]; then
   error "REVIEWER is empty. Export APPROVER_EMAIL in this terminal and pass \"\$APPROVER_EMAIL\"."
   usage
 fi
+if [[ "${REVIEWER}" != *@* ]]; then
+  error "REVIEWER must be the Workspace signer's email address, got '${REVIEWER}'. Replace the YOUR_WORKSPACE_SIGNER placeholder."
+  usage
+fi
 if (( ${#REASON} < 10 )); then
   error "Reason must be at least 10 characters (got ${#REASON})."
   usage
@@ -57,6 +61,12 @@ if [[ -n "${IMPERSONATE_ENV}" || ( -n "${IMPERSONATE_CFG}" && "${IMPERSONATE_CFG
   die "gcloud is impersonating ${IMPERSONATE_ENV:-${IMPERSONATE_CFG}}. Pub/Sub pull/publish in this script must run as the Workspace signer, not evidence-admin. Run:
   unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
   gcloud config unset auth/impersonate_service_account"
+fi
+
+# The Approval Agent records the reviewer as written. Only the active account
+# holds signerVerifier on the key, so the reviewer must be that account.
+if [[ "${REVIEWER,,}" != "${ACTIVE_ACCOUNT,,}" ]]; then
+  die "Reviewer '${REVIEWER}' does not match the active gcloud account '${ACTIVE_ACCOUNT:-none}'. Run: gcloud config set account \"${REVIEWER}\" (then gcloud auth login if needed), or pass the active account as REVIEWER."
 fi
 
 section "Pull pending request"

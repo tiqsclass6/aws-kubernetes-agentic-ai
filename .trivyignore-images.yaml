@@ -16,6 +16,11 @@ vulnerabilities:
       - "usr/local/bin/kubectl"
     expired_at: 2026-11-15
     statement: Upstream kubectl Go stdlib; awaiting a kubectl patch built with Go 1.26.9.
+  - id: CVE-2026-56851
+    paths:
+      - "usr/local/bin/kubectl"
+    expired_at: 2026-11-15
+    statement: Upstream kubectl vendors golang.org/x/text v0.39.0 (fixed in 0.41.0); no kubectl release includes it as of 2026-10-17.
   - id: CVE-2026-78669
     paths:
       - "usr/local/bin/kubectl"

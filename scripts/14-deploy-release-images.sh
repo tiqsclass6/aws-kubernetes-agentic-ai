@@ -9,6 +9,7 @@ LOCK_FILE="${1:-release-evidence/image-lock.json}"
 
 require_command kubectl
 require_command jq
+require_command gcloud
 
 if [[ ! -f "${LOCK_FILE}" ]]; then
   die "Image lock file not found: ${LOCK_FILE}"
@@ -18,6 +19,24 @@ image() { jq -er --arg key "$1" '.[$key]' "${LOCK_FILE}"; }
 
 section "14  Deploy immutable image digests"
 log "Lock file: ${LOCK_FILE}"
+
+# A lock file left over from an earlier release still passes its checksum, but
+# teardown deletes the images it names. Check every digest before changing
+# anything, so a stale lock fails here instead of as ImagePullBackOff.
+section "Check digests exist in Artifact Registry"
+missing=()
+while IFS= read -r ref; do
+  if gcloud artifacts docker images describe "${ref}" --format='value(image_summary.digest)' >/dev/null 2>&1; then
+    log "found   ${ref##*/}"
+  else
+    missing+=("${ref}")
+  fi
+done < <(jq -r '.[]' "${LOCK_FILE}" | tr -d '\r')
+if (( ${#missing[@]} > 0 )); then
+  for ref in "${missing[@]}"; do error "missing ${ref}"; done
+  die "The lock file names images that no longer exist (stale release-evidence/ or a failed release). Download the lock from a successful release run."
+fi
+success "All digests exist."
 
 section "Set Deployment images"
 kubectl set image deployment/event-aggregator -n shared-services event-aggregator="$(image event-aggregator)"

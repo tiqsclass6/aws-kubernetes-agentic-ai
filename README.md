@@ -643,9 +643,10 @@ Run releases from GitHub, not locally. Keyless Cosign signing on a workstation w
 
 ```bash
 gh workflow run release.yml -f tag=v1 -f deploy=false
-gh run download RUN_ID -n release-v1 -D release-evidence
-bash scripts/14-deploy-release-images.sh release-evidence/image-lock.json
+rm -rf release-evidence && gh run download RUN_ID -n release-v1 -D release-evidence && bash scripts/14-deploy-release-images.sh release-evidence/image-lock.json
 ```
+
+`RUN_ID` is the run number from `gh run list -w release.yml`, not a job ID, and the run must have succeeded: a failed run uploads no artifact. Clearing `release-evidence/` first and chaining with `&&` stops an old lock file from being deployed; `14` also refuses digests that no longer exist in Artifact Registry.
 
 Running `04` after a release moves the mutable `v1` tag back to unsigned local builds. Only the digests pinned by `14` are the signed release.
 
@@ -723,10 +724,10 @@ kubectl get cronjob -n security
 
 ## **Human Approval Workflow**
 
-Export the signer in every new terminal. If `APPROVER_EMAIL` is empty, `11` stops with a usage error, and `gcloud config set account "${APPROVER_EMAIL}"` clears your active account.
+Export the signer in every new terminal, replacing `YOUR_WORKSPACE_SIGNER` with the real address. `11` refuses a reviewer that is not an email address or does not match the active gcloud account, because the reviewer is recorded in the signed decision.
 
 ```bash
-export APPROVER_EMAIL=YOUR_WORKSPACE_SIGNER
+export APPROVER_EMAIL=YOUR_WORKSPACE_SIGNER   # replace with your Workspace signer's address
 ```
 
 Check for pending requests without leasing them. Do not `gcloud pubsub subscriptions pull` this subscription: a pull holds the request for 10 minutes, and `11` then finds nothing to sign.
