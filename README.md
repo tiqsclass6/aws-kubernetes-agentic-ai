@@ -11,7 +11,7 @@
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-Keyless_Release-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 
 > **Status: configuration-ready for deployment.**
-> Student portfolio lab for a governed security-response workflow on GKE. Last verified live e2e: 16–17 Oct 2026, two full rebuilds including one controlled-remediation run (then torn down). Re-apply from the Quick start or [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Automated remediation, Slack delivery, and Jira delivery are disabled by default.
+> Student portfolio lab for a governed security-response workflow on GKE. Last verified live e2e: 18 Oct 2026, the fifth full rebuild since 16 Oct, with every planned path passing in one run (then torn down). Re-apply from the Quick start or [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Automated remediation, Slack delivery, and Jira delivery are disabled by default.
 
 ## **Table of Contents**
 
@@ -690,27 +690,28 @@ no remediation authorized
 
 This publishes two correlated synthetic findings and waits for the final incident report.
 
-### **Last Live Verification (16–17 October 2026)**
+### **Last Live Verification (18 October 2026)**
 
-Two full rebuilds from teardown, then teardown again. The KMS signing key (version `12`) was kept between runs.
+The fifth full rebuild from teardown since 16 October, then teardown again. It was the first single run in which every planned path passed. The KMS signing key (version `12`) was kept between runs.
 
-| **Check**                         | **Result**                                                                       |
-|-----------------------------------|----------------------------------------------------------------------------------|
-| `01-validate.sh`                  | 8/8: 11 Python tests, 5 OPA tests, 357 Conftest checks, `broken-app` rejected    |
-| `03` + Terraform                  | Retained KMS and GitHub sign-in pool re-adopted; 188 added, 0 destroyed          |
-| `04` / `05` / `08`                | 11 images, Falco on both nodes, all Deployments ready                            |
-| `09` governance                   | `REQUIRE_APPROVAL` with automation disabled                                      |
-| `10` end to end                   | Incident report through all eight stages; Gemini 3.8 Flash analysis              |
-| `11` signed approval              | KMS v12 signature verified; `execution-blocked` while fail-closed                |
-| Controlled mode (one test)        | Signed approval restarted `broken-app` through the mTLS gateway and MCP Server   |
-| BigQuery evidence                 | APPROVE audit and `executed` remediation rows queried as `evidence-admin`        |
-| Governed Release                  | 11/11 images scanned, SBOMs, Cosign signed and verified; build-only run, no wait |
-| `14` signed digests               | Lock checksum matched; 10 Deployments pinned to signed digests                   |
-| Slack                             | Incident report delivered (`status: sent`, HTTP 200)                             |
-| Trivy / Prowler jobs              | All findings accepted by the aggregator                                          |
-| `15` teardown                     | 188 destroyed; KMS key ring and version 12 retained                              |
+| **Check**                         | **Result**                                                                                 |
+|-----------------------------------|--------------------------------------------------------------------------------------------|
+| `01-validate.sh`                  | 11 Python tests, OPA tests, Terraform validate, 357 Conftest checks, `broken-app` rejected |
+| `03` + Terraform                  | Retained KMS keys and GitHub sign-in pool re-adopted; no cluster replacement               |
+| `04` / `05` / `08` / `12`         | 11 images, Falco ready, all Deployments ready, agent metrics exported                      |
+| `09` governance                   | `REQUIRE_APPROVAL` with automation disabled                                                |
+| `11` signed approve / deny        | KMS v12 verified: `execution-blocked` while fail-closed, then `denied-by-governance`       |
+| `10` end to end                   | Incident report through all eight stages; dead-letter queue empty                          |
+| Governed Release                  | Two runs passed the Trivy gate; images scanned, SBOMs, Cosign signed and verified          |
+| `14` signed digests               | All 11 digests found; 10 Deployments pinned to signed digests                              |
+| Controlled mode (one test)        | Policy-only `PERMIT`; MCP `restart_deployment` 200; `broken-app` restarted                 |
+| Return to fail-closed             | Both modes `disabled`; digest pins kept                                                    |
+| Slack                             | Incident reports delivered (`status: sent`, HTTP 200)                                      |
+| BigQuery evidence                 | Governance and remediation rows queried as `evidence-admin`                                |
+| Trivy / Prowler jobs              | All findings accepted by the aggregator                                                    |
+| `15` teardown                     | 188 destroyed; KMS key ring and version 12 retained                                        |
 
-Not exercised: the release workflow's in-cloud `deploy` job, which cannot reach the control plane from GitHub-hosted runners.
+Not exercised: the release workflow's in-cloud `deploy` job, which cannot reach the control plane from GitHub-hosted runners. The second rebuild (16–17 October) also verified a signed approval that executed a restart.
 
 ### **Core Status Checks**
 

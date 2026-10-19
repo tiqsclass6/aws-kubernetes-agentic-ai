@@ -1,6 +1,6 @@
 # **RUNBOOK — Agentic Security Platform on GKE**
 
-This runbook provisions, validates, deploys, tests, operates, and removes the governed multi-agent security platform. Last verified live e2e: 16–17 Oct 2026, two full rebuilds including one controlled-remediation run (then torn down).
+This runbook provisions, validates, deploys, tests, operates, and removes the governed multi-agent security platform. Last verified live e2e: 18 Oct 2026, the fifth full rebuild since 16 Oct, with every planned path passing in one run: signed approve and deny, a policy-only controlled remediation, the Governed Release, a signed-digest deploy, Slack, and the BigQuery evidence query (then torn down).
 Re-apply from this runbook to run it again.
 
 The active architecture is:
