@@ -106,6 +106,7 @@ spec:
               path: /healthz
               port: health
 
+            initialDelaySeconds: 10
             periodSeconds: 5
             failureThreshold: 30
 

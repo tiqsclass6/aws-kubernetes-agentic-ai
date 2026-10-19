@@ -239,7 +239,7 @@ variable "github_owner" {
 variable "github_repository" {
   description = "GitHub repository name trusted by the release identity"
   type        = string
-  default     = "aws-kubernetes-agentic-ai"
+  default     = "gke-kubernetes-agentic-ai"
 }
 
 variable "github_default_branch" {

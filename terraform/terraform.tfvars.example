@@ -19,7 +19,7 @@ slack_webhook_secret_id            = "security-slack-webhook-url"
 jira_api_token_secret_id           = "security-jira-api-token"
 
 github_owner          = "tiqsclass6"
-github_repository     = "aws-kubernetes-agentic-ai"
+github_repository     = "gke-kubernetes-agentic-ai"
 github_default_branch = "main"
 
 monitoring_notification_channel_ids = []

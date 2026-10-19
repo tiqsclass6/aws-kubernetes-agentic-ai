@@ -450,7 +450,7 @@ gh variable set GKE_CLUSTER_LOCATION --body us-central1-c
 Create a GitHub environment named `production`:
 
 ```bash
-gh api --method PUT repos/tiqsclass6/aws-kubernetes-agentic-ai/environments/production
+gh api --method PUT repos/tiqsclass6/gke-kubernetes-agentic-ai/environments/production
 ```
 
 In the GitHub UI, require a reviewer before that environment can deploy.
@@ -1030,77 +1030,54 @@ BigQuery evidence is visible
 rollback procedure is tested
 ```
 
-Edit `manifests/governance-agent.yaml`:
+Patch the two ConfigMaps in the cluster instead of editing and re-applying the manifests. Re-applying `manifests/governance-agent.yaml` or `remediation-agent.yaml` also resets those Deployments to the mutable `:v1` tag, which undoes the digest pin from `14` (section 24). The patch leaves the manifests untouched, so nothing needs reverting in git. A later `kubectl apply` of either manifest also returns the mode to `disabled`.
 
-```yaml
-AUTOMATION_MODE: controlled
-```
-
-Edit `manifests/remediation-agent.yaml`:
-
-```yaml
-EXECUTION_MODE: controlled
-```
-
-Apply:
+**1. Switch both modes to `controlled`:**
 
 ```bash
-kubectl apply -f manifests/governance-agent.yaml
-kubectl apply -f manifests/remediation-agent.yaml
-
-kubectl rollout restart deployment/governance-agent -n ai-governance
-kubectl rollout restart deployment/remediation-agent -n ai-agents
-
-kubectl rollout status deployment/governance-agent \
-  -n ai-governance \
-  --timeout=300s
-
-kubectl rollout status deployment/remediation-agent \
-  -n ai-agents \
-  --timeout=300s
-```
-
-Verify current values:
-
-```bash
-kubectl get configmap governance-agent-config \
-  -n ai-governance \
-  -o jsonpath='{.data.AUTOMATION_MODE}{"\n"}'
-
-kubectl get configmap remediation-agent-config \
-  -n ai-agents \
-  -o jsonpath='{.data.EXECUTION_MODE}{"\n"}'
-```
-
-The control-plane still rejects requests that fail deterministic policy, approval, allowlist, idempotency, MCP, mTLS, or RBAC checks.
-
-While both modes are `controlled`, policy can PERMIT without a human. A HIGH incident with confidence ≥ 0.95, low operational risk, at least 3 signals, 2 sources, and 3 evidence items executes automatically. The `09` fixture meets every threshold, so `09` restarts `broken-app` and then fails its `REQUIRE_APPROVAL` assertion. Live scanner findings can also qualify. Keep the controlled window short.
-
-Confirm the action (verified 16 Oct 2026: signed approval → `executed` → `POST /tool/restart_deployment` 200):
-
-```bash
-kubectl logs -n mcp deploy/mcp-server --since=1h | grep -i restart
-kubectl get deploy broken-app -n app01 -o jsonpath='{.spec.template.metadata.annotations}{"\n"}'
-```
-
-Return to fail-closed as soon as the test is done, and keep the edited manifests out of commits:
-
-```bash
-git checkout -- manifests/governance-agent.yaml manifests/remediation-agent.yaml
-kubectl apply -f manifests/governance-agent.yaml -f manifests/remediation-agent.yaml
+kubectl patch configmap governance-agent-config -n ai-governance --type merge -p '{"data":{"AUTOMATION_MODE":"controlled"}}'
+kubectl patch configmap remediation-agent-config -n ai-agents --type merge -p '{"data":{"EXECUTION_MODE":"controlled"}}'
 kubectl rollout restart deployment/governance-agent -n ai-governance
 kubectl rollout restart deployment/remediation-agent -n ai-agents
 kubectl rollout status deployment/governance-agent -n ai-governance --timeout=300s
 kubectl rollout status deployment/remediation-agent -n ai-agents --timeout=300s
-kubectl exec -n ai-agents deploy/remediation-agent -- printenv EXECUTION_MODE
-```
-
-Wait for both rollouts before the `printenv` check; run it immediately after the restart and it reads the old pod, which still says `controlled`. The ConfigMaps are the source of truth:
-
-```bash
 kubectl get configmap governance-agent-config -n ai-governance -o jsonpath='{.data.AUTOMATION_MODE}{"\n"}'
 kubectl get configmap remediation-agent-config -n ai-agents -o jsonpath='{.data.EXECUTION_MODE}{"\n"}'
 ```
+
+Both values must print `controlled`. The control-plane still rejects requests that fail deterministic policy, approval, allowlist, idempotency, MCP, mTLS, or RBAC checks.
+
+**2. Trigger a remediation.** While both modes are `controlled`, policy can PERMIT without a human. A HIGH incident with confidence ≥ 0.95, low operational risk, at least 3 signals, 2 sources, and 3 evidence items executes automatically. The `09` fixture meets every threshold:
+
+```bash
+bash scripts/09-test-governance.sh
+```
+
+Here `09` is expected to **fail**: it prints the `PERMIT` decision and stops with `Received PERMIT (automation_mode controlled) ... expected REQUIRE_APPROVAL`. Live scanner findings can also qualify. Keep the controlled window short.
+
+**3. Confirm the action** (verified 18 Oct 2026 on digest-pinned images: `PERMIT` → `executed` → `POST /tool/restart_deployment` 200, about one second after the decision):
+
+```bash
+kubectl logs -n mcp deploy/mcp-server --since=15m | grep -i restart
+kubectl get deploy broken-app -n app01 -o jsonpath='{.spec.template.metadata.annotations}{"\n"}'
+```
+
+Expect a `POST /tool/restart_deployment` line with status 200 and a `kubectl.kubernetes.io/restartedAt` annotation. Both are empty if no incident arrived while controlled mode was live.
+
+**4. Return to fail-closed** as soon as the test is done:
+
+```bash
+kubectl patch configmap governance-agent-config -n ai-governance --type merge -p '{"data":{"AUTOMATION_MODE":"disabled"}}'
+kubectl patch configmap remediation-agent-config -n ai-agents --type merge -p '{"data":{"EXECUTION_MODE":"disabled"}}'
+kubectl rollout restart deployment/governance-agent -n ai-governance
+kubectl rollout restart deployment/remediation-agent -n ai-agents
+kubectl rollout status deployment/governance-agent -n ai-governance --timeout=300s
+kubectl rollout status deployment/remediation-agent -n ai-agents --timeout=300s
+kubectl get configmap governance-agent-config -n ai-governance -o jsonpath='{.data.AUTOMATION_MODE}{"\n"}'
+kubectl get configmap remediation-agent-config -n ai-agents -o jsonpath='{.data.EXECUTION_MODE}{"\n"}'
+```
+
+Both values must print `disabled`. The ConfigMaps are the source of truth: `kubectl exec ... printenv EXECUTION_MODE` right after the restart can still read an old pod that says `controlled`.
 
 ---
 
@@ -1296,13 +1273,19 @@ Verify with `./scripts/10-test-pipeline.sh`. The report should contain `"slack":
 
 ## **20. Optional Jira Reporting**
 
-Add the API token:
+Skip this section unless you have a Jira Cloud site and API token; Jira stays off (`ENABLE_JIRA: "false"`). To use it, load the token without echoing it, then add it:
 
 ```bash
-printf '%s' "${JIRA_API_TOKEN}" \
-  | gcloud secrets versions add security-jira-api-token \
-      --project=class-6-5-tiqs \
-      --data-file=-
+read -rsp 'Jira API token: ' JIRA_API_TOKEN; echo
+if [[ -n "${JIRA_API_TOKEN:-}" ]]; then
+  printf '%s' "${JIRA_API_TOKEN}" \
+    | gcloud secrets versions add security-jira-api-token \
+        --project=class-6-5-tiqs \
+        --data-file=-
+else
+  echo "JIRA_API_TOKEN is empty; skipping Jira (it stays disabled)"
+fi
+unset JIRA_API_TOKEN
 ```
 
 Set in `manifests/reporting-agent.yaml`:
@@ -1483,6 +1466,23 @@ bash scripts/03-adopt-retained-gcp.sh
 terraform -chdir=terraform plan -out=agentic.tfplan
 terraform -chdir=terraform apply agentic.tfplan
 ```
+
+### **Terraform apply: Firestore `Provider produced inconsistent result after apply` or `429` service accounts per minute**
+
+Both appeared in the 18 Oct 2026 rebuild, in the same first apply. Neither leaves anything half-built.
+
+| **Error** | **Why** | **Fix** |
+| --- | --- | --- |
+| **`google_firestore_database.agent_state[0]`: `Root object was present, but now absent`** | Google created the `(default)` database, but the provider's read-back came too soon and found nothing, so it is missing from state. A plain re-apply then fails with `already exists` | Confirm it exists, import it, then re-apply (see below). The plan then shows only `deletion_policy` `ABANDON` → `DELETE` for it, which is normal after an import |
+| **`Error 429: ... Service accounts created per minute per project`** | The first apply creates about a dozen service accounts at once | Wait 60 seconds (the error's `retryDelay`) and re-apply. The failed account was never created |
+
+```bash
+gcloud firestore databases list --project=class-6-5-tiqs --format="table(name,locationId,createTime)"
+terraform -chdir=terraform import 'google_firestore_database.agent_state[0]' 'projects/class-6-5-tiqs/databases/(default)'
+terraform -chdir=terraform apply
+```
+
+Before approving the re-apply, check the plan creates no Firestore database and replaces nothing. Expect the three `google_firestore_field` TTL resources to take about 6 minutes.
 
 ### **Node pool stuck in PROVISIONING (`ZONE_RESOURCE_POOL_EXHAUSTED`)**
 
@@ -1745,7 +1745,7 @@ If the account shows but calls still fail, run `gcloud auth login` as that accou
 
 ### **`Secret Payload cannot be empty`**
 
-`SLACK_WEBHOOK_URL` is not set in this terminal, so `printf` sent an empty string. Load it with `read -rsp` as in section 19, then add the version again.
+`SLACK_WEBHOOK_URL` (section 19) or `JIRA_API_TOKEN` (section 20) is not set in this terminal, so `printf` sent an empty string. Load it with `read -rsp` as in those sections, then add the version again. If you have no Jira site, skip section 20; Jira stays disabled and nothing else depends on the secret.
 
 ### **`13-release-images.sh`: `Required command not found: cosign`**
 
@@ -1766,7 +1766,9 @@ kubectl wait --for=condition=complete "$(kubectl get jobs -n security -o name | 
 
 ### **`09` returns `PERMIT` or `broken-app` restarts without an approval**
 
-Controlled mode is still on (section 16). The `09` fixture meets every automatic threshold. Return both modes to `disabled` and restart the Governance and Remediation Agents.
+Controlled mode is still on (section 16). The `09` fixture meets every automatic threshold, so `09` stops with `Received PERMIT (automation_mode controlled) ... expected REQUIRE_APPROVAL`. That is the expected result during the section 16 test. Otherwise return both modes to `disabled` with step 4 of section 16.
+
+Before 18 Oct 2026, `09` handled a PERMIT by printing an `AssertionError` traceback, then polling until the deadline and reporting `Matching governance decision was not received`. The decision had arrived; it was a PERMIT.
 
 ### **`printenv EXECUTION_MODE` still prints `controlled` after reverting**
 
@@ -1794,7 +1796,6 @@ A transient Artifact Registry upload timeout on a large layer. Re-run `04`; laye
 
 The table name in the query is empty. `TABLE` comes from `bq ls`; if that call failed (for example `You do not currently have an active account selected`), `TABLE` is blank and the query targets the dataset itself, which reads as a permission error. Fix auth (`gcloud auth login`), re-run the `TABLE=` line, and check `echo "${TABLE}"` prints `stdout_YYYYMMDD` before querying. The `evidence-admin` token-creator and `bigquery.jobUser` bindings are created by Terraform; you do not need to add them by hand.
 
-
 ### **`YOUR_WORKSPACE_SIGNER` shows up as an account, a user, or a reviewer**
 
 `APPROVER_EMAIL` was exported with the literal placeholder. In the 17 Oct 2026 run this caused, in order: `gcloud config set account` made a nonexistent account active, so `09` and `bq` failed with `Your current active account [YOUR_WORKSPACE_SIGNER] does not have any valid credentials`; `gcloud auth login "${APPROVER_EMAIL}"` was rejected because the browser returned a different account; IAM failed with `User YOUR_WORKSPACE_SIGNER does not exist`; and two KMS-signed decisions recorded `YOUR_WORKSPACE_SIGNER` as the reviewer in the audit trail. Export the real address and use the guarded block in section 15. `11` now refuses a reviewer that is not an email address or does not match the active gcloud account.
@@ -1818,6 +1819,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v //var/run/docker.sock:/var/run/docker.sock
 ```
 
 If the finding is in `usr/local/bin/kubectl`, first check for a newer kubectl patch (`https://dl.k8s.io/release/stable-1.36.txt`). If there is none, add a path-scoped entry with an `expired_at` to `.trivyignore-images.yaml`, as was done for `CVE-2026-56851` on 17 Oct 2026. Anything outside kubectl gets fixed in the image instead.
+
 ### **Governed Release exits 126**
 
 Exit `126` means the runner found the script but could not execute it (missing `+x` or CRLF line endings from a Windows commit). The workflow invokes `bash scripts/13-release-images.sh` and `bash scripts/14-deploy-release-images.sh`. `.gitattributes` forces LF on `*.sh`. Re-dispatch after those files are on `main`:
@@ -1870,11 +1872,15 @@ gh workflow run release.yml -f tag=v1 -f deploy=false
 gh run watch $(gh run list -w release.yml -L 1 --json databaseId -q '.[0].databaseId')
 ```
 
-Deploy the verified digests from your workstation. GitHub-hosted runners are not in `authorized_networks`, so the workflow's own `deploy` job cannot reach the control plane. Only use a run whose `release` job succeeded (a failed run uploads no artifact), and pass the run ID from `gh run list -w release.yml`, not a job ID. Clear the old evidence first and chain the steps, so a failed download cannot fall through to a stale lock file:
+Deploy the verified digests from your workstation. GitHub-hosted runners are not in `authorized_networks`, so the workflow's own `deploy` job cannot reach the control plane. Only a successful run uploads the artifact, so look up the newest successful `release.yml` run instead of typing a run ID (wait for `gh run watch` to finish first, or this picks the previous release). Clear the old evidence first and chain the steps, so a failed download cannot fall through to a stale lock file:
 
 ```bash
-rm -rf release-evidence && gh run download RUN_ID -n release-v1 -D release-evidence && [[ "$(sha256sum release-evidence/image-lock.json | cut -c1-64)" == "$(cut -c1-64 release-evidence/image-lock.sha256)" ]] && bash scripts/14-deploy-release-images.sh release-evidence/image-lock.json
+RUN_ID="$(gh run list -w release.yml -s success -L 1 --json databaseId -q '.[0].databaseId')"
+echo "Release run: ${RUN_ID:-none found}"
+rm -rf release-evidence && [[ -n "${RUN_ID}" ]] && gh run download "${RUN_ID}" -n release-v1 -D release-evidence && [[ "$(sha256sum release-evidence/image-lock.json | cut -c1-64)" == "$(cut -c1-64 release-evidence/image-lock.sha256)" ]] && bash scripts/14-deploy-release-images.sh release-evidence/image-lock.json
 ```
+
+To deploy an older release, set `RUN_ID` to its run number from `gh run list -w release.yml` (not a job ID) and run only the last line.
 
 The checksum proves the lock file was not altered, not that it is current. `14` therefore checks that every digest exists in Artifact Registry before it changes any Deployment.
 
@@ -1888,14 +1894,18 @@ Running `04` after a release moves the mutable `v1` tag back to unsigned local b
 
 ### **25.1 Disable controlled remediation**
 
-Before teardown, set:
+Before teardown, confirm both modes are `disabled`:
 
-```yaml
-AUTOMATION_MODE: disabled
-EXECUTION_MODE: disabled
+```bash
+kubectl get configmap governance-agent-config -n ai-governance -o jsonpath='{.data.AUTOMATION_MODE}{"\n"}'
+kubectl get configmap remediation-agent-config -n ai-agents -o jsonpath='{.data.EXECUTION_MODE}{"\n"}'
 ```
 
-Apply and restart the Governance and Remediation Agents.
+If either prints `controlled`, run step 4 of section 16. Then drop any local manifest edits (for example `ENABLE_SLACK: "true"`) so they are not committed:
+
+```bash
+git checkout -- manifests/
+```
 
 ### **25.2 Delete Kubernetes namespaces**
 

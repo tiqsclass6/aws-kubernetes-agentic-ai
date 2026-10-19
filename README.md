@@ -643,10 +643,12 @@ Run releases from GitHub, not locally. Keyless Cosign signing on a workstation w
 
 ```bash
 gh workflow run release.yml -f tag=v1 -f deploy=false
-rm -rf release-evidence && gh run download RUN_ID -n release-v1 -D release-evidence && bash scripts/14-deploy-release-images.sh release-evidence/image-lock.json
+gh run watch $(gh run list -w release.yml -L 1 --json databaseId -q '.[0].databaseId')
+RUN_ID="$(gh run list -w release.yml -s success -L 1 --json databaseId -q '.[0].databaseId')"
+rm -rf release-evidence && [[ -n "${RUN_ID}" ]] && gh run download "${RUN_ID}" -n release-v1 -D release-evidence && bash scripts/14-deploy-release-images.sh release-evidence/image-lock.json
 ```
 
-`RUN_ID` is the run number from `gh run list -w release.yml`, not a job ID, and the run must have succeeded: a failed run uploads no artifact. Clearing `release-evidence/` first and chaining with `&&` stops an old lock file from being deployed; `14` also refuses digests that no longer exist in Artifact Registry.
+`RUN_ID` is looked up as the newest successful release run, because a failed run uploads no artifact. Clearing `release-evidence/` first and chaining with `&&` stops an old lock file from being deployed; `14` also refuses digests that no longer exist in Artifact Registry. The RUNBOOK (section 24) adds a lock-file checksum check to the same chain.
 
 Running `04` after a release moves the mutable `v1` tag back to unsigned local builds. Only the digests pinned by `14` are the signed release.
 
@@ -772,47 +774,35 @@ The signing key version is `12` (versions `1`–`11` are DESTROYED). Sign as the
 
 Keep the platform in dry-run mode until policy, approval, and evidence validation pass.
 
-To permit controlled execution, update:
-
-```yaml
-# manifests/governance-agent.yaml
-AUTOMATION_MODE: controlled
-```
-
-```yaml
-# manifests/remediation-agent.yaml
-EXECUTION_MODE: controlled
-```
-
-Then apply and restart:
+To permit controlled execution, patch the two ConfigMaps in the cluster and restart. Patching keeps the committed manifests fail-closed. It also keeps digest-pinned images: re-applying the manifests would reset those Deployments to `:v1`.
 
 ```bash
-kubectl apply -f manifests/governance-agent.yaml
-kubectl apply -f manifests/remediation-agent.yaml
-
+kubectl patch configmap governance-agent-config -n ai-governance --type merge -p '{"data":{"AUTOMATION_MODE":"controlled"}}'
+kubectl patch configmap remediation-agent-config -n ai-agents --type merge -p '{"data":{"EXECUTION_MODE":"controlled"}}'
 kubectl rollout restart deployment/governance-agent -n ai-governance
 kubectl rollout restart deployment/remediation-agent -n ai-agents
-
-kubectl rollout status deployment/governance-agent \
-  -n ai-governance \
-  --timeout=300s
-
-kubectl rollout status deployment/remediation-agent \
-  -n ai-agents \
-  --timeout=300s
-```
-
-Enabling these flags does not bypass the policy, approval, replay, allowlist, mTLS, MCP, or RBAC controls. It does let policy approve some fixes without a human: a HIGH incident with confidence ≥ 0.95, low risk, at least 3 signals, 2 sources, and 3 evidence items runs automatically. The `09` fixture meets every threshold, so `09` restarts `broken-app` in controlled mode and fails its `REQUIRE_APPROVAL` check.
-
-Run `09` after the restart, confirm the action, then return to fail-closed and keep the manifests out of your commit. The MCP log shows a restart only if an incident arrived while controlled mode was live:
-
-```bash
-kubectl logs -n mcp deploy/mcp-server --since=1h | grep -i restart
-git checkout -- manifests/governance-agent.yaml manifests/remediation-agent.yaml
-kubectl apply -f manifests/governance-agent.yaml -f manifests/remediation-agent.yaml
-kubectl rollout restart deployment/governance-agent -n ai-governance
-kubectl rollout restart deployment/remediation-agent -n ai-agents
+kubectl rollout status deployment/governance-agent -n ai-governance --timeout=300s
 kubectl rollout status deployment/remediation-agent -n ai-agents --timeout=300s
+```
+
+Enabling these flags does not bypass the policy, approval, replay, allowlist, mTLS, MCP, or RBAC controls. It does let policy approve some fixes without a human: a HIGH incident with confidence ≥ 0.95, low risk, at least 3 signals, 2 sources, and 3 evidence items runs automatically. The `09` fixture meets every threshold, so in controlled mode `09` restarts `broken-app` and stops with `Received PERMIT ... expected REQUIRE_APPROVAL`. That failure is the expected result:
+
+```bash
+bash scripts/09-test-governance.sh
+kubectl logs -n mcp deploy/mcp-server --since=15m | grep -i restart
+kubectl get deploy broken-app -n app01 -o jsonpath='{.spec.template.metadata.annotations}{"\n"}'
+```
+
+Then return to fail-closed right away and confirm both values print `disabled`:
+
+```bash
+kubectl patch configmap governance-agent-config -n ai-governance --type merge -p '{"data":{"AUTOMATION_MODE":"disabled"}}'
+kubectl patch configmap remediation-agent-config -n ai-agents --type merge -p '{"data":{"EXECUTION_MODE":"disabled"}}'
+kubectl rollout restart deployment/governance-agent -n ai-governance
+kubectl rollout restart deployment/remediation-agent -n ai-agents
+kubectl rollout status deployment/governance-agent -n ai-governance --timeout=300s
+kubectl rollout status deployment/remediation-agent -n ai-agents --timeout=300s
+kubectl get configmap governance-agent-config -n ai-governance -o jsonpath='{.data.AUTOMATION_MODE}{"\n"}'
 kubectl get configmap remediation-agent-config -n ai-agents -o jsonpath='{.data.EXECUTION_MODE}{"\n"}'
 ```
 

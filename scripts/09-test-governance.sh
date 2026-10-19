@@ -44,7 +44,10 @@ section "Poll governance decisions"
 DEADLINE=$((SECONDS + WAIT_SECONDS))
 while (( SECONDS < DEADLINE )); do
   gcloud pubsub subscriptions pull "${DECISION_SUBSCRIPTION}" --project="${PROJECT_ID}" --limit=20 --auto-ack --format=json > "${TMP_DIR}/pull.json"
-  if python - "${TMP_DIR}/pull.json" "${RUN_ID}" <<'PY_CHECK'
+  # Exit codes: 0 = REQUIRE_APPROVAL received, 1 = not received yet, 2 = received with another decision.
+  # The pull auto-acks, so a wrong decision never comes back; stop on it instead of polling to the deadline.
+  check_status=0
+  python - "${TMP_DIR}/pull.json" "${RUN_ID}" > "${TMP_DIR}/decision.json" <<'PY_CHECK' || check_status=$?
 import base64,json,sys
 from pathlib import Path
 items=json.loads(Path(sys.argv[1]).read_text() or "[]")
@@ -56,15 +59,24 @@ for item in items:
   try:payload=json.loads(candidate)
   except Exception:continue
   if sys.argv[2] in json.dumps(payload,sort_keys=True):
-   assert payload["decision"]=="REQUIRE_APPROVAL",payload
-   assert payload["policy"]["approved"] is False,payload
-   print(json.dumps(payload,indent=2,sort_keys=True)); raise SystemExit(0)
+   print(json.dumps(payload,indent=2,sort_keys=True))
+   ok=payload.get("decision")=="REQUIRE_APPROVAL" and payload.get("policy",{}).get("approved") is False
+   raise SystemExit(0 if ok else 2)
 raise SystemExit(1)
 PY_CHECK
-  then
+  if (( check_status == 0 )); then
+    cat "${TMP_DIR}/decision.json"
     success_section "Governance smoke test passed"
     log "No remediation was authorized."
     exit 0
+  fi
+  if (( check_status == 2 )); then
+    cat "${TMP_DIR}/decision.json"
+    DECISION="$(python -c 'import json,sys; d=json.load(sys.stdin); print(d.get("decision"), d.get("policy",{}).get("automation_mode"))' < "${TMP_DIR}/decision.json")"
+    die "Received ${DECISION%% *} (automation_mode ${DECISION#* }) for ${RUN_ID}, expected REQUIRE_APPROVAL. Expected while controlled mode is on (RUNBOOK section 16); otherwise return both modes to disabled."
+  fi
+  if (( check_status != 1 )); then
+    die "Decision check failed with exit code ${check_status}."
   fi
   log "No matching decision yet; retrying in ${POLL_SECONDS}s."
   sleep "${POLL_SECONDS}"

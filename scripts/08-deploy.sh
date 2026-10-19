@@ -39,13 +39,15 @@ kubectl apply -f "${ROOT_DIR}/manifests/trivy-ksa.yaml"
 kubectl apply -f "${ROOT_DIR}/manifests/prowler-ksa.yaml"
 success "Service accounts and RBAC applied."
 
-section "6/13  MCP gateway and MCP Server"
+section "6/13  MCP Server and MCP gateway"
+# The server and its Service go first: nginx resolves the proxy_pass host
+# (mcp-server.mcp.svc.cluster.local) at startup and exits if it does not exist yet.
+kubectl apply -f "${ROOT_DIR}/manifests/mcp-server-config.yaml"
+kubectl apply -f "${ROOT_DIR}/manifests/mcp-deployment.yaml"
 kubectl apply -f "${ROOT_DIR}/manifests/mcp-nginx-config.yaml"
 kubectl apply -f "${ROOT_DIR}/manifests/mcp-gateway-deployment.yaml"
 kubectl apply -f "${ROOT_DIR}/manifests/mcp-gateway-service.yaml"
-kubectl apply -f "${ROOT_DIR}/manifests/mcp-server-config.yaml"
-kubectl apply -f "${ROOT_DIR}/manifests/mcp-deployment.yaml"
-success "MCP gateway and server applied."
+success "MCP server and gateway applied."
 
 section "7/13  PostgreSQL and demo application"
 kubectl apply -f "${ROOT_DIR}/manifests/postgres.yaml"
