@@ -1,4 +1,4 @@
-google-cloud-pubsub==2.42.0
+google-cloud-pubsub==2.43.0
 google-cloud-firestore==2.34.1
 pydantic==2.14.1
 requests==2.34.2
